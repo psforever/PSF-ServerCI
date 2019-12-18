@@ -2,9 +2,16 @@
 // 5. Run server
 // 6. Expose server port(s)
 // 7. Expose server logs
-const app_config = require("./app_config")
-const sqlite3 = require('sqlite3').verbose();
+import app_config from './app_config.js'
+import sqlite3 from 'sqlite3'
+
+sqlite3.verbose()
+
 let db = null;
+
+(async function() {
+	await open_database();
+})();
 
 async function open_database() {
 	return new Promise((resolve, reject) => {
@@ -47,7 +54,7 @@ function make_param(dict) {
 	return out_dict;
 }
 
-function create_job(github_ctx_base, github_ctx_head, job_ctx) {
+export function create_job(github_ctx_base, github_ctx_head, job_ctx) {
 	const job = {
 		check_suite_id : job_ctx.check_suite_id,
 		check_id : job_ctx.check_run_id,
@@ -72,7 +79,7 @@ function create_job(github_ctx_base, github_ctx_head, job_ctx) {
 	});
 }
 
-function create_instance(job_id, working_dir, pid, log_path) {
+export function create_instance(job_id, working_dir, pid, log_path) {
 	return new Promise((resolve, reject) => {
 		var stmt = db.prepare("INSERT INTO instance VALUES(null, ?, ?, ?, ?)");
 		stmt.run([job_id, working_dir, pid, log_path], (err) => {
@@ -86,7 +93,7 @@ function create_instance(job_id, working_dir, pid, log_path) {
 	});
 }
 
-function get_jobs() {
+export function get_jobs() {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM job", function(err, rows) {
 			if (err) {
@@ -99,7 +106,7 @@ function get_jobs() {
 	});
 }
 
-function get_jobs_by_suite(check_suite_id) {
+export function get_jobs_by_suite(check_suite_id) {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM job WHERE check_suite_id = ?", [check_suite_id], function(err, rows) {
 			if (err) {
@@ -112,7 +119,7 @@ function get_jobs_by_suite(check_suite_id) {
 	});
 }
 
-function get_instances_by_job(job_id) {
+export function get_instances_by_job(job_id) {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM instance WHERE job_id = ?", [job_id], function(err, rows) {
 			if (err) {
@@ -125,7 +132,7 @@ function get_instances_by_job(job_id) {
 	});
 }
 
-function get_instances() {
+export function get_instances() {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM instance", function(err, rows) {
 			if (err) {
@@ -138,7 +145,7 @@ function get_instances() {
 	});
 }
 
-function delete_instance(id) {
+export function delete_instance(id) {
 	return new Promise((resolve, reject) => {
 		db.all("DELETE FROM instance WHERE id = ?", [id], function(err, rows) {
 			if (err) {
@@ -151,7 +158,7 @@ function delete_instance(id) {
 	});
 }
 
-function get_instances_by_gref(gref) {
+export function get_instances_by_gref(gref) {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT instance.* FROM " +
 			"instance INNER JOIN job ON job.id=instance.job_id WHERE " +
@@ -164,19 +171,4 @@ function get_instances_by_gref(gref) {
 			resolve(rows)
 		});
 	});
-}
-
-(async function() {
-	await open_database();
-})();
-
-module.exports = {
-	get_jobs : get_jobs,
-	get_jobs_by_suite : get_jobs_by_suite,
-	create_job : create_job,
-	get_instances_by_gref : get_instances_by_gref,
-	get_instances_by_job : get_instances_by_job,
-	get_instances : get_instances,
-	delete_instance : delete_instance,
-	create_instance : create_instance,
 }

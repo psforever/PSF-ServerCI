@@ -1,5 +1,7 @@
-const app_config = require("./app_config")
-const {createLogger, format, transports} = require("winston")
+import app_config from "./app_config.js"
+import winston from "winston"
+
+let {createLogger, format, transports} = winston
 
 const logger = createLogger({
 	level: app_config.log_level,
@@ -27,4 +29,4 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-module.exports = logger
+export default logger

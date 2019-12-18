@@ -1,11 +1,11 @@
-const build = require("./build");
-const logger = require("./log");
-const db = require("./db");
-const instance = require("./instance");
-const app_config = require("./app_config")
-const fs = require("fs");
+import * as build from './build.js'
+import logger from "./log.js"
+import * as db from './db.js'
+import * as instance from "./instance.js"
+import app_config from "./app_config.js"
+import fs from 'fs'
 
-async function handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, check_run) {
+export async function handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, check_run) {
 	var log;
 
 	const job_ctx = {
@@ -33,8 +33,7 @@ async function handle_check_run(octokit, action, github_ctx_base, github_ctx_hea
 		}
 
 		try {
-			job_id = await db.create_job(github_ctx_base, github_ctx_head, job_ctx);
-			job_ctx.job_id = job_id;
+			job_ctx.job_id = await db.create_job(github_ctx_base, github_ctx_head, job_ctx);
 		} catch (e) {
 			log.error("Unable to create job in DB: ", e)
 			return;
@@ -87,6 +86,7 @@ async function handle_check_run(octokit, action, github_ctx_base, github_ctx_hea
 
 	try {
 		if (job_result) {
+			// TODO: ONLY stop old instances if the new instance is the latest
 			if (old_instances.length) {
 				log.info("Stopping %d previous instances", old_instances.length)
 
@@ -141,7 +141,7 @@ async function create_check_run(octokit, github_ctx, sha, name) {
 	});
 }
 
-async function handle_check_suite(octokit, action, github_ctx_base, github_ctx_head, check_suite) {
+export async function handle_check_suite(octokit, action, github_ctx_base, github_ctx_head, check_suite) {
 	var log = logger.child({ checkSuite : check_suite.id})
 
 	log.info("Check suite event. action='%s', branch='%s' url='%s'",
@@ -222,7 +222,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx) {
 	return { job_output: job_output, job_result : true }
 }
 
-async function handle_pull_request(octokit, action, pull_request, repo) {
+export async function handle_pull_request(octokit, action, pull_request, repo) {
 	const pr = pull_request;
 	const pr_head = pull_request.head;
 
@@ -328,10 +328,4 @@ async function handle_pull_request(octokit, action, pull_request, repo) {
 		logger.error("Unhandled pull_request action='%s'", action);
 		return;
 	}
-}
-
-module.exports = {
-	handle_check_run : handle_check_run,
-	handle_check_suite : handle_check_suite,
-	handle_pull_request : handle_pull_request,
 }

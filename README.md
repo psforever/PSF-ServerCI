@@ -28,7 +28,7 @@ Before starting, you will need to create a GitHub app with the correct permissio
 }
 ```
 
-This requires a relatively modern version of Node that supports async/await ES6 (tested using v12.11.1).
+This requires a relatively modern version of Node that supports async/await and ES6 (v13.x+). Tested using v13.3.0. You may still get `(node:61412) ExperimentalWarning: The ESM module loader is experimental.`. Ignore this as ESM is essentially stable in recent versions.
 
 ```
 git clone https://github.com/psforever/PSF-ServerCI

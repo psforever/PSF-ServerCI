@@ -1,9 +1,9 @@
-const db = require("./db")
-const process = require("process")
-const logger = require("./log");
-const find = require('find-process');
+import * as db from './db.js'
+import process from "process"
+import logger from "./log.js"
+import find from 'find-process'
  
-async function stop_all() {
+export async function stop_all() {
 	const instances = await db.get_instances();
 
 	for (let i = 0; i < instances.length; i++) {
@@ -11,7 +11,7 @@ async function stop_all() {
 	}
 }
 
-async function stop_all_job(job_id) {
+export async function stop_all_job(job_id) {
 	const instances = await db.get_instances_by_job(job_id);
 
 	for (let i = 0; i < instances.length; i++) {
@@ -43,7 +43,7 @@ function process_kill(pid, sig) {
 	}
 }
 
-async function stop(instance) {
+export async function stop(instance) {
 	const pid = instance.pid;
 
 	if (!await process_exists(pid)) {
@@ -90,10 +90,4 @@ async function stop(instance) {
 	} catch (e) {
 		logger.error("Unable to remove instance from DB: ", e);
 	}
-}
-
-module.exports = {
-	stop_all_job : stop_all_job,
-	stop_all : stop_all,
-	stop : stop,
 }

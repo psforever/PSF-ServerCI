@@ -1,5 +1,6 @@
 {
   "private": true,
+  "type": "module",
   "dependencies": {
     "@octokit/app": "^4.1.0",
     "@octokit/auth-app": "^2.4.2",

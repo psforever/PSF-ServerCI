@@ -1,14 +1,14 @@
-const fs = require('fs');
-const http = require('http');
-const { App } = require("@octokit/app");
-const Octokit = require("@octokit/rest");
-const createHandler = require('github-webhook-handler');
+import fs from 'fs'
+import http from 'http'
+import OctokitApp from "@octokit/app"
+import Octokit from "@octokit/rest"
+import createHandler from 'github-webhook-handler'
 
-const db = require('./db');
-const logger = require("./log");
-const handlers = require('./check');
-const instance = require('./instance');
-const app_config = require('./app_config');
+import * as db from './db.js'
+import logger from "./log.js"
+import * as handlers from './check.js'
+import * as instance from "./instance.js"
+import app_config from "./app_config.js"
 
 process.on('unhandledRejection', (reason, p) => {
 	console.log('Unhandled Promise rejection at: ', p);
@@ -18,7 +18,7 @@ process.on('unhandledRejection', (reason, p) => {
 
 const PORT = app_config.listen_port;
 
-const app = new App({
+const app = new OctokitApp.App({
  id: app_config.app_id,
  privateKey: fs.readFileSync(app_config.private_key_path)
 });

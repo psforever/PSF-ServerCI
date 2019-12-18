@@ -1,13 +1,13 @@
-const util = require('util');
-const child_process = require('child_process')
+import util from 'util'
+import child_process from 'child_process'
+import fs from 'fs'
 const execFile = util.promisify(child_process.execFile);
-const fs = require('fs')
 
 // 1. Clone repository at the correct branch and SHA head
 // 2. Build package
 // 3. Extract package
 
-async function run_repo_command(repo_path, command, args) {
+export async function run_repo_command(repo_path, command, args) {
 	//console.log(`RUN[cwd:${repo_path}] - ${command} ${args}`)
 
 	try {
@@ -19,7 +19,7 @@ async function run_repo_command(repo_path, command, args) {
 	}
 }
 
-function run_repo_command_background(repo_path, command, args) {
+export function run_repo_command_background(repo_path, command, args) {
 	const out = fs.openSync(repo_path + '/out.log', 'a');
 	const err = fs.openSync(repo_path + '/out.log', 'a');
 
@@ -31,9 +31,4 @@ function run_repo_command_background(repo_path, command, args) {
 
 	subprocess.unref();
 	return subprocess;
-}
-
-module.exports = {
-	run_repo_command_background : run_repo_command_background,
-	run_repo_command : run_repo_command,
 }
