@@ -1,0 +1,19 @@
+node_modules
+target
+build
+
+# SQLite3
+psfci.db
+
+# Log files
+*.log
+
+# Key material
+*.pem
+
+# Config
+config.json
+
+# Vim
+*.swp
+*.swo
