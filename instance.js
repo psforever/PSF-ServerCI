@@ -2,6 +2,7 @@ import * as db from './db.js'
 import process from "process"
 import logger from "./log.js"
 import find from 'find-process'
+import * as build from './build.js'
  
 export async function stop_all() {
 	const instances = await db.get_instances();
@@ -43,51 +44,24 @@ function process_kill(pid, sig) {
 	}
 }
 
+
 export async function stop(instance) {
-	const pid = instance.pid;
-
-	if (!await process_exists(pid)) {
-		logger.warn("Tried to stop non-existant process pid=%d", pid)
-
-		try {
-			await db.delete_instance(instance.id);
-		} catch (e) {
-			logger.error("Unable to remove instance from DB: ", e);
-		}
-		return;
-	}
-
-	const MAX_TRIES = 5;
-
-	let i;
-
-	// try to kill it gracefully at first
-	for (i = 0 ; i < MAX_TRIES; i++) {
-		if (!process_kill(pid, 'SIGTERM')) {
-			logger.warn("Failed to send kill signal to pid=%d", pid)
-		}
-
-		if (!await process_exists(pid))
-			break
-
-		await timeout(1000);
-	}
-
-	if (i == MAX_TRIES) {
-		logger.warn("Process not responding to SIGTERM, sending SIGKILL")
-		process_kill(pid, 'SIGKILL')
-	}
-
-	// final check to see if the process still exists
-	if (!await process_exists(pid)) {
-		logger.info("Succesfully killed pid=%d", pid);
-	} else {
-		logger.error("UNABLE to kill pid=%d! Resource leaked: ", pid, e);
-	}
+	await stop_docker(instance.container_name);
 
 	try {
 		await db.delete_instance(instance.id);
 	} catch (e) {
 		logger.error("Unable to remove instance from DB: ", e);
 	}
+}
+
+export async function stop_docker(container_name) {
+	try {
+		const output = await build.run_repo_command(".", "docker", ["stop", "--time", "0", container_name]);
+		logger.info("Stopped docker container " + container_name);
+	} catch (e) {
+		logger.warn("Failed to stop container: " + e.message);
+	}
+
+	return;
 }

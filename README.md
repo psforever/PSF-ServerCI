@@ -35,3 +35,7 @@ git clone https://github.com/psforever/PSF-ServerCI
 npm install
 node index.js
 ```
+
+## Build Containers
+https://github.com/hseeberger/scala-sbt
+* docker pull hseeberger/scala-sbt

@@ -40,7 +40,7 @@ async function create_database() {
 	db.serialize(function() {
 		db.run("CREATE TABLE job (id INTEGER PRIMARY KEY, check_suite_id INTEGER, check_id INTEGER, base_url TEXT, base_branch TEXT, base_sha TEXT, head_url TEXT, head_branch TEXT, head_sha TEXT)")
 		db.run("CREATE TABLE instance (id INTEGER PRIMARY KEY, " +
-			"job_id INTEGER, working_directory TEXT, pid INTEGER, log_path TEXT," +
+			"job_id INTEGER, working_directory TEXT, container_name TEXT, log_path TEXT," +
 			"FOREIGN KEY(job_id) REFERENCES job(id))")
 	});
 }
@@ -79,10 +79,10 @@ export function create_job(github_ctx_base, github_ctx_head, job_ctx) {
 	});
 }
 
-export function create_instance(job_id, working_dir, pid, log_path) {
+export function create_instance(job_id, working_dir, container_name, log_path) {
 	return new Promise((resolve, reject) => {
 		var stmt = db.prepare("INSERT INTO instance VALUES(null, ?, ?, ?, ?)");
-		stmt.run([job_id, working_dir, pid, log_path], (err) => {
+		stmt.run([job_id, working_dir, container_name, log_path], (err) => {
 				if (err) {
 					reject(err)
 					return;

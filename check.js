@@ -3,7 +3,9 @@ import logger from "./log.js"
 import * as db from './db.js'
 import * as instance from "./instance.js"
 import app_config from "./app_config.js"
+import * as util from "./util.js"
 import fs from 'fs'
+import path from "path";
 
 export async function handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, check_run) {
 	var log;
@@ -33,6 +35,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		}
 
 		try {
+			job_ctx.check_run_id = check_run.id;
 			job_ctx.job_id = await db.create_job(github_ctx_base, github_ctx_head, job_ctx);
 		} catch (e) {
 			log.error("Unable to create job in DB: ", e)
@@ -79,8 +82,20 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
 
+	const ports = await util.get_free_udp_ports(51000, 55000, 2);
+
+	if (!ports) {
+		log.error("Unable to find free ports for instance");
+		return;
+	}
+
 	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
-	const {job_output, job_result} = await build_instance(log, octokit, github_ctx_head, job_ctx);
+	const {job_output, job_result} = await build_instance(log, octokit, github_ctx_head, job_ctx, ports);
+
+	let summary = ""
+	summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`\n";
+	summary += "## Job Output\n"
+	summary += "```\n" + job_output.join("\n") + "\n```\n";
 
 	log.info(job_output.join("\n"));
 
@@ -104,7 +119,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				conclusion : "success",
 				output : {
 					title : "Server Instance Running",
-					summary : "`Log output`",
+					summary : summary,
 				},
 				actions : [
 					{ label : "Stop Server", description : "Stop the running server instance",
@@ -122,7 +137,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				conclusion : "failure",
 				output : {
 					title : "Job Failure",
-					summary : "`Log output`",
+					summary : summary,
 				}
 			});
 		}
@@ -155,36 +170,86 @@ export async function handle_check_suite(octokit, action, github_ctx_base, githu
 	await handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, null)
 }
 
-async function build_instance(log, octokit, github_ctx, job_ctx) {
+async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 	const directory = app_config.build_directory + github_ctx.head_sha;
-	const pack_file = "target/pslogin-1.0.2-SNAPSHOT.tar.gz"
-	const run_path = "pslogin-1.0.2-SNAPSHOT/bin/ps-login"
+	const directory_abs = path.resolve(directory);
 
 	const job_output = [];
+	const pre_start_commands = [];
 	const commands = [];
+
+	// create and start the docker container
+	const container_name = github_ctx.branch + "_" + github_ctx.head_sha.slice(0, 5*2);
+	const docker_create = ["docker", "run", "--detach", "--rm", "--name", container_name,
+		"--publish", udp_ports[0]+":"+udp_ports[0]+"/udp",
+		"--publish", udp_ports[1]+":"+udp_ports[1]+"/udp",
+		"--volume", directory_abs + ":/app", "--workdir", "/app", "mozilla/sbt",
+		"tail", "-f", "/dev/null"];
+	const docker_exec = ["docker", "exec", container_name];
 
 	log.info("Starting instance build...")
 
 	// dont reclone if not needed
 	if (!fs.existsSync(directory)) {
-		commands.push(["git", ['clone', '--depth=50', '--branch='+github_ctx.branch, github_ctx.url, directory], "."]);
+		pre_start_commands.push([["git", 'clone', '--depth=50', '--branch='+github_ctx.branch, github_ctx.url, directory], "."]);
 	}
 
-	commands.push(["git", ["checkout", "-fq", github_ctx.head_sha], directory])
-	commands.push(["sbt", ["-batch", "compile"], directory])
-	commands.push(["sbt", ["-batch", "packArchive"], directory])
-	commands.push(["tar" , ["xf", pack_file], directory])
+	pre_start_commands.push([["git", "checkout", "-fq", github_ctx.head_sha], directory])
+	pre_start_commands.push([docker_create, "."]);
 
-	for (let i = 0; i < commands.length; i++) {
-		const bin = commands[i][0];
-		const args = commands[i][1];
-		const dir = commands[i][2];
+	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
+	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
+	commands.push([["sbt", "-batch", "compile"], directory])
+	commands.push([["sbt", "-batch", "packArchive"], directory])
+	// TODO: this will break when the version changes
+	commands.push([["tar" , "xf", "target/pslogin-1.0.2-SNAPSHOT.tar.gz"], directory])
+
+	// Prestart commands (outside of container)
+	for (let i = 0; i < pre_start_commands.length; i++) {
+		const all_args = pre_start_commands[i][0];
+		const bin = all_args[0];
+		const args = all_args.slice(1);
+		const dir = pre_start_commands[i][1];
 		const cmdline = bin + " " + args.join(" ");
 
 		job_output.push("$ " + cmdline)
-		
+
 		// TODO: check if job has been cancelled early
-		log.info("Running: " + cmdline)
+		log.info("PRERUN: " + cmdline)
+		let output = await build.run_repo_command(dir, bin, args);
+
+		if (output === null) {
+			job_output.push("Prestart command failed")
+			return { job_output: job_output, job_result : false }
+		} else {
+			job_output.push(output)
+		}
+	}
+
+	let instance_id = -1;
+	const log_dir = directory + "/logs";
+
+	try {
+		instance_id = await db.create_instance(job_ctx.job_id, directory, container_name, log_dir);
+	} catch(e) {
+		instance.stop_docker(container_name);
+		job_output.push("Failed to create instance row in DB")
+		log.error("Failed to create instance row in DB ", e);
+		return { job_output: job_output, job_result : false }
+	}
+
+	// Job commands (within container)
+	for (let i = 0; i < commands.length; i++) {
+		const all_args = [].concat(docker_exec, commands[i][0])
+		const bin = all_args[0];
+		const args = all_args.slice(1);
+		const dir = commands[i][1];
+		const cmdline = bin + " " + args.join(" ");
+
+		job_output.push("$ " + cmdline)
+
+		// TODO: check if job has been cancelled early
+		log.info("RUN: " + cmdline)
 		let output = await build.run_repo_command(dir, bin, args);
 
 		if (output === null) {
@@ -195,27 +260,22 @@ async function build_instance(log, octokit, github_ctx, job_ctx) {
 		}
 	}
 
-	const job_args = ['forever'];
-	job_output.push(run_path + " " + job_args.join(" "))
+	// TODO: this will break on version changes
+	const job_args = ["pslogin-1.0.2-SNAPSHOT/bin/ps-login"];
+	const final_job = [].concat(docker_exec, job_args)
+	const cmdline = job_args.join(" ");
+	log.info("FINALRUN: " + cmdline)
+	job_output.push("Running instance command: $ " + cmdline);
 
 	// TODO: check if job has been cancelled early
 	// TODO: control job output directory/file
 	// this is asynchronous (returns immediately)
-	const instance_info = build.run_repo_command_background(directory, run_path, job_args)
+	const instance_info = build.run_repo_command_background(directory, final_job[0], final_job.slice(1))
 
-	let instance_id = -1;
-
-	try {
-		instance_id = await db.create_instance(job_ctx.job_id, directory, instance_info.pid, "out.log");
-	} catch(e) {
-		job_output.push("Failed to create instance row in DB")
-		log.error("Failed to create instance row in DB ", e);
-		return { job_output: job_output, job_result : false }
-	}
+	log.info(`Instance now running as ID ${instance_id} (${container_name})`)
+	job_output.push(`Instance now running as ID ${instance_id} (${container_name})`)
 
 	instance_info.on('close',  async (code) => {
-		await db.delete_instance(instance_id);
-
 		log.info("Process ended: %d", code)
 	});
 

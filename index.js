@@ -24,7 +24,7 @@ const app = new OctokitApp.App({
 });
 
 var handler = createHandler({
-	path: '/',
+	path: '/psfci',
 	secret: app_config.webhook_secret
 });
 
@@ -33,8 +33,8 @@ http.createServer(function (req, res) {
 		res.statusCode = 404
 		res.end('no such location')
 	});
-}).listen(PORT, function() {
-	logger.info("Webserver now listening on port %d", PORT)
+}).listen(PORT, app_config.listen_address, function() {
+	logger.info("Webserver now listening on %s:%d", app_config.listen_address, PORT)
 });
 
 //////////////
