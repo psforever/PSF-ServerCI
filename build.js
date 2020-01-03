@@ -20,8 +20,8 @@ export async function run_repo_command(repo_path, command, args) {
 }
 
 export function run_repo_command_background(repo_path, command, args) {
-	const out = fs.openSync(repo_path + '/out.log', 'a');
-	const err = fs.openSync(repo_path + '/out.log', 'a');
+	const out = fs.openSync(repo_path + '/console.log', 'a');
+	const err = fs.openSync(repo_path + '/console.log', 'a');
 
 	const subprocess = child_process.spawn(command, args, {
 	  detached: true,

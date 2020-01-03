@@ -132,9 +132,35 @@ export function get_instances_by_job(job_id) {
 	});
 }
 
+export function get_instance_by_id(id) {
+	return new Promise((resolve, reject) => {
+		db.all("SELECT * FROM instance WHERE id = ?", [id], function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
+}
+
 export function get_instances() {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM instance", function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
+}
+
+export function get_instances_detailed() {
+	return new Promise((resolve, reject) => {
+		db.all("SELECT instance.*, job.head_sha, job.head_url, job.head_branch FROM instance INNER JOIN job ON job.id=instance.job_id", function(err, rows) {
 			if (err) {
 				reject(err);
 				return;

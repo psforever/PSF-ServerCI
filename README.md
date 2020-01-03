@@ -36,6 +36,8 @@ npm install
 node index.js
 ```
 
-## Build Containers
-https://github.com/hseeberger/scala-sbt
-* docker pull hseeberger/scala-sbt
+This only works on Linux. To run build jobs, you also need Docker installed and you need the `mozilla/sbt` image pulled:
+
+```
+docker pull mozilla/sbt
+```

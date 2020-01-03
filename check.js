@@ -90,18 +90,24 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	}
 
 	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
+	const build_start = new Date();
 	const {job_output, job_result} = await build_instance(log, octokit, github_ctx_head, job_ctx, ports);
+	const build_end = new Date()
+	const build_time = build_end - build_start
 
 	let summary = ""
-	summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`\n";
-	summary += "## Job Output\n"
-	summary += "```\n" + job_output.join("\n") + "\n```\n";
 
-	log.info(job_output.join("\n"));
+	log.info("Job took %d seconds and produced %d lines of output",
+		build_time/1000, job_output.length)
 
 	try {
 		if (job_result) {
-			// TODO: ONLY stop old instances if the new instance is the latest
+			const log_url = `https://play.psforever.net/psfci/${job_result.instance_id}`;
+			summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`<br/>\n";
+			summary += `**[View Server Logs](${log_url})**\n`;
+			summary += "## Job Output\n"
+			summary += "```\n" + job_output.join("\n") + "\n```\n";
+
 			if (old_instances.length) {
 				log.info("Stopping %d previous instances", old_instances.length)
 
@@ -127,6 +133,9 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				]
 			});
 		} else {
+			summary += "## Job Output\n"
+			summary += "```\n" + job_output.join("\n") + "\n```\n";
+
 			log.error("Instance build failed")
 
 			const result = await octokit.checks.update({
@@ -220,7 +229,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 
 		if (output === null) {
 			job_output.push("Prestart command failed")
-			return { job_output: job_output, job_result : false }
+			return { job_output: job_output, job_result : undefined }
 		} else {
 			job_output.push(output)
 		}
@@ -230,12 +239,13 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 	const log_dir = directory + "/logs";
 
 	try {
+		fs.mkdirSync(log_dir);
 		instance_id = await db.create_instance(job_ctx.job_id, directory, container_name, log_dir);
 	} catch(e) {
 		instance.stop_docker(container_name);
 		job_output.push("Failed to create instance row in DB")
 		log.error("Failed to create instance row in DB ", e);
-		return { job_output: job_output, job_result : false }
+		return { job_output: job_output, job_result : undefined }
 	}
 
 	// Job commands (within container)
@@ -254,7 +264,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 
 		if (output === null) {
 			job_output.push("Command failed")
-			return { job_output: job_output, job_result : false }
+			return { job_output: job_output, job_result : undefined }
 		} else {
 			job_output.push(output)
 		}
@@ -267,19 +277,21 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 	log.info("FINALRUN: " + cmdline)
 	job_output.push("Running instance command: $ " + cmdline);
 
-	// TODO: check if job has been cancelled early
-	// TODO: control job output directory/file
-	// this is asynchronous (returns immediately)
-	const instance_info = build.run_repo_command_background(directory, final_job[0], final_job.slice(1))
+	try {
+		// TODO: check if job has been cancelled early
+		// this is asynchronous (returns immediately)
+		const instance_info = build.run_repo_command_background(log_dir, final_job[0], final_job.slice(1))
+		instance_info.on('close',  async (code) => {
+			log.info("Process ended: %d", code)
+		});
+	} catch(e) {
+		return { job_output: job_output, job_result : undefined }
+	}
 
 	log.info(`Instance now running as ID ${instance_id} (${container_name})`)
 	job_output.push(`Instance now running as ID ${instance_id} (${container_name})`)
 
-	instance_info.on('close',  async (code) => {
-		log.info("Process ended: %d", code)
-	});
-
-	return { job_output: job_output, job_result : true }
+	return { job_output: job_output, job_result : { instance_id: instance_id } }
 }
 
 export async function handle_pull_request(octokit, action, pull_request, repo) {
