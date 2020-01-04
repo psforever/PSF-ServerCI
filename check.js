@@ -5,7 +5,8 @@ import * as instance from "./instance.js"
 import app_config from "./app_config.js"
 import * as util from "./util.js"
 import fs from 'fs'
-import path from "path";
+import path from "path"
+import ini from 'ini'
 
 export async function handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, check_run) {
 	var log;
@@ -90,15 +91,27 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	}
 
 	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
-	const build_start = new Date();
-	const {job_output, job_result} = await build_instance(log, octokit, github_ctx_head, job_ctx, ports);
-	const build_end = new Date()
-	const build_time = build_end - build_start
+
+	let job_output = [], job_result;
+
+	try {
+		const build_start = new Date();
+		const result = await build_instance(log, octokit, github_ctx_head, job_ctx, ports);
+		const build_end = new Date()
+		const build_time = build_end - build_start
+
+		job_output = result.job_output;
+		job_result = result.job_result;
+
+		log.info("Job took %d seconds and produced %d lines of output",
+			build_time/1000, job_output.length)
+
+	} catch (e) {
+		log.error("Unknown job failure ", e)
+		job_output = ["Unknown job failure: " + e.message];
+	}
 
 	let summary = ""
-
-	log.info("Job took %d seconds and produced %d lines of output",
-		build_time/1000, job_output.length)
 
 	try {
 		if (job_result) {
@@ -179,7 +192,15 @@ export async function handle_check_suite(octokit, action, github_ctx_base, githu
 	await handle_check_run(octokit, action, github_ctx_base, github_ctx_head, check_suite, null)
 }
 
-async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
+function load_ini(filename) {
+	return ini.parse(fs.readFileSync(filename, 'utf-8'));
+}
+
+function save_ini(config, filename) {
+	fs.writeFileSync(filename, ini.encode(config, { whitespace : true }));
+}
+
+async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	const directory = app_config.build_directory + github_ctx.head_sha;
 	const directory_abs = path.resolve(directory);
 
@@ -190,8 +211,8 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 	// create and start the docker container
 	const container_name = github_ctx.branch + "_" + github_ctx.head_sha.slice(0, 5*2);
 	const docker_create = ["docker", "run", "--detach", "--rm", "--name", container_name,
-		"--publish", udp_ports[0]+":"+udp_ports[0]+"/udp",
-		"--publish", udp_ports[1]+":"+udp_ports[1]+"/udp",
+		"--publish", ports[0]+":"+ports[0]+"/udp",
+		"--publish", ports[1]+":"+ports[1]+"/udp",
 		"--volume", directory_abs + ":/app", "--workdir", "/app", "mozilla/sbt",
 		"tail", "-f", "/dev/null"];
 	const docker_exec = ["docker", "exec", container_name];
@@ -235,11 +256,14 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 		}
 	}
 
+	// Create instance in the DB for tracking
 	let instance_id = -1;
 	const log_dir = directory + "/logs";
 
 	try {
-		fs.mkdirSync(log_dir);
+		if (!fs.existsSync(log_dir))
+			fs.mkdirSync(log_dir);
+
 		instance_id = await db.create_instance(job_ctx.job_id, directory, container_name, log_dir);
 	} catch(e) {
 		instance.stop_docker(container_name);
@@ -247,6 +271,12 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 		log.error("Failed to create instance row in DB ", e);
 		return { job_output: job_output, job_result : undefined }
 	}
+
+	// Modify the config for the ports
+	const config = load_ini(path.join(directory, "config", "worldserver.ini.dist"))
+	config.loginserver.ListeningPort = ports[0];
+	config.worldserver.ListeningPort = ports[1];
+	save_ini(config, path.join(directory, "config", "worldserver.ini.dist"))
 
 	// Job commands (within container)
 	for (let i = 0; i < commands.length; i++) {
@@ -263,6 +293,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 		let output = await build.run_repo_command(dir, bin, args);
 
 		if (output === null) {
+			instance.stop_docker(container_name);
 			job_output.push("Command failed")
 			return { job_output: job_output, job_result : undefined }
 		} else {
@@ -285,6 +316,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, udp_ports) {
 			log.info("Process ended: %d", code)
 		});
 	} catch(e) {
+		instance.stop_docker(container_name);
 		return { job_output: job_output, job_result : undefined }
 	}
 
