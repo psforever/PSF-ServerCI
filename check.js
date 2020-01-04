@@ -131,7 +131,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				await instance.stop(old_instances[i])
 		}
 
-		log.info("Instance build completed")
+		log.info("Instance build completed (%s)", details_url)
 
 		try {
 			const result = await octokit.checks.update({
@@ -159,7 +159,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		details += "## Job Output\n"
 		details += "```\n" + job_output.join("\n") + "\n```\n";
 
-		log.error("Instance build failed")
+		log.error("Instance build failed (%s)", details_url)
 
 		try {
 			const result = await octokit.checks.update({
@@ -234,9 +234,8 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		// necessary to avoid permission issues when running commands outside
 		// of docker on the mounted volumes
 		"--user", `${process.getuid()}:${process.getgid()}`,
-		"--env", "HOME=/app",
 
-		"--volume", directory_abs + ":/app", "--workdir", "/app", "mozilla/sbt",
+		"--volume", directory_abs + ":/app", "--workdir", "/app", "psfci",
 		"tail", "-f", "/dev/null"];
 	const docker_exec = ["docker", "exec", container_name];
 

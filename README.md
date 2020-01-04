@@ -36,8 +36,10 @@ npm install
 node index.js
 ```
 
-This only works on Linux. To run build jobs, you also need Docker installed and you need the `mozilla/sbt` image pulled:
+This only works on Linux. To run build jobs, you also need Docker installed and you need the `mozilla/sbt` image pulled.
+Then you need to build the psfci specific Dockerfile:
 
 ```
 docker pull mozilla/sbt
+docker build -t psfci .
 ```
