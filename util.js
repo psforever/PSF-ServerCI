@@ -1,11 +1,18 @@
 import * as build from "./build.js"
+import logger from "./log.js"
 
 export async function get_free_udp_ports(start, end, amount) {
 	const portlist = await build.run_repo_command(".", "ss", ["--udp", "--listening", "--numeric", "--no-header"])
 
+	if (portlist.code != 0) {
+		logger.error("Failed to get free UDP ports: %s",
+			portlist.stdout || portlist.stderr);
+		return [];
+	}
+
 	const taken_ports = {};
 
-	portlist.split("\n").forEach((line) => {
+	portlist.stdout.split("\n").forEach((line) => {
 		if (!line) return;
 		const tokens = line.split(/\s+/);
 		const ip_port = tokens[3];

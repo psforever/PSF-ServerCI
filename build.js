@@ -12,10 +12,9 @@ export async function run_repo_command(repo_path, command, args) {
 
 	try {
 		const {stdout, stderr} = await execFile(command, args, { cwd : repo_path });
-		return stdout;
+		return { code : 0, stdout : stdout, stderr : stderr };
 	} catch(e) {
-		console.log(e);
-		return null;
+		return { code : e.code, stdout : e.stdout, stderr : e.stderr };
 	}
 }
 

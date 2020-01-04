@@ -90,6 +90,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		return;
 	}
 
+	// TODO: dont stop instances that are actually infact newer than the rerequested check run
 	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
 
 	let job_output = [], job_result;
@@ -111,25 +112,25 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		job_output = ["Unknown job failure: " + e.message];
 	}
 
-	let summary = ""
+	if (job_result) {
+		const log_url = `https://play.psforever.net/psfci/${job_result.instance_id}`;
+		let summary = "", details = "";
 
-	try {
-		if (job_result) {
-			const log_url = `https://play.psforever.net/psfci/${job_result.instance_id}`;
-			summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`<br/>\n";
-			summary += `**[View Server Logs](${log_url})**\n`;
-			summary += "## Job Output\n"
-			summary += "```\n" + job_output.join("\n") + "\n```\n";
+		summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`";
+		summary += ` (**[View Server Logs](${log_url})**)\n`;
+		details += "## Job Output\n"
+		details += "```\n" + job_output.join("\n") + "\n```\n";
 
-			if (old_instances.length) {
-				log.info("Stopping %d previous instances", old_instances.length)
+		if (old_instances.length) {
+			log.info("Stopping %d previous instances", old_instances.length)
 
-				for (let i = 0; i < old_instances.length; i++)
-					await instance.stop(old_instances[i])
-			}
+			for (let i = 0; i < old_instances.length; i++)
+				await instance.stop(old_instances[i])
+		}
 
-			log.info("Instance build completed")
+		log.info("Instance build completed")
 
+		try {
 			const result = await octokit.checks.update({
 				owner : github_ctx_base.owner,
 				repo : github_ctx_base.repo,
@@ -139,18 +140,24 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				output : {
 					title : "Server Instance Running",
 					summary : summary,
+					text : details,
 				},
 				actions : [
 					{ label : "Stop Server", description : "Stop the running server instance",
 						identifier : "stop"}
 				]
 			});
-		} else {
-			summary += "## Job Output\n"
-			summary += "```\n" + job_output.join("\n") + "\n```\n";
+		} catch(e) {
+			log.error("Failed to update check_run: ", e);
+		}
+	} else {
+		let summary = "", details = "";
+		details += "## Job Output\n"
+		details += "```\n" + job_output.join("\n") + "\n```\n";
 
-			log.error("Instance build failed")
+		log.error("Instance build failed")
 
+		try {
 			const result = await octokit.checks.update({
 				owner : github_ctx_base.owner,
 				repo : github_ctx_base.repo,
@@ -158,13 +165,14 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				status: "completed",
 				conclusion : "failure",
 				output : {
-					title : "Job Failure",
+					title : "Instance Failure",
 					summary : summary,
+					text : details,
 				}
 			});
+		} catch(e) {
+			log.error("Failed to update check_run: ", e);
 		}
-	} catch(e) {
-		log.error("Failed to update check_run: ", e);
 	}
 }
 
@@ -252,11 +260,12 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		log.info("PRERUN: " + cmdline)
 		let output = await build.run_repo_command(dir, bin, args);
 
-		if (output === null) {
-			job_output.push("Prestart command failed")
+		if (output.code != 0) {
+			log.error("Prerun command failure: %d", output.code)
+			job_output.push(output.stdout || output.stderr);
 			return { job_output: job_output, job_result : undefined }
 		} else {
-			job_output.push(output)
+			job_output.push(output.stdout)
 		}
 	}
 
@@ -296,12 +305,13 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		log.info("RUN: " + cmdline)
 		let output = await build.run_repo_command(dir, bin, args);
 
-		if (output === null) {
+		if (output.code != 0) {
 			instance.stop_docker(container_name);
-			job_output.push("Command failed")
+			log.error("Command failure: %d", output.code)
+			job_output.push(output.stdout || output.stderr);
 			return { job_output: job_output, job_result : undefined }
 		} else {
-			job_output.push(output)
+			job_output.push(output.stdout)
 		}
 	}
 

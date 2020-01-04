@@ -56,11 +56,13 @@ export async function stop(instance) {
 }
 
 export async function stop_docker(container_name) {
-	try {
-		const output = await build.run_repo_command(".", "docker", ["stop", "--time", "0", container_name]);
+	const output = await build.run_repo_command(".", "docker", ["stop", "--time", "0", container_name]);
+
+	if (output.code != 0) {
+		logger.warn("Failed to stop container %s: %s",
+			container_name, output.stdout || output.stderr);
+	} else {
 		logger.info("Stopped docker container " + container_name);
-	} catch (e) {
-		logger.warn("Failed to stop container: " + e.message);
 	}
 
 	return;
