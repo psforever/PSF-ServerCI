@@ -227,9 +227,15 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 
 	// create and start the docker container
 	const container_name = sanitize_branch(github_ctx.branch) + "-" + github_ctx.head_sha.slice(0, 5*2);
-	const docker_create = ["docker", "run", "--detach", "--rm", "--name", container_name,
+	const docker_create = ["docker", "run",
+		"--detach", "--rm", "--name", container_name,
 		"--publish", ports[0]+":"+ports[0]+"/udp",
 		"--publish", ports[1]+":"+ports[1]+"/udp",
+		// necessary to avoid permission issues when running commands outside
+		// of docker on the mounted volumes
+		"--user", `${process.getuid()}:${process.getgid()}`,
+		"--env", "HOME=/app",
+
 		"--volume", directory_abs + ":/app", "--workdir", "/app", "mozilla/sbt",
 		"tail", "-f", "/dev/null"];
 	const docker_exec = ["docker", "exec", container_name];
@@ -239,9 +245,12 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	// dont reclone if not needed
 	if (!fs.existsSync(directory)) {
 		pre_start_commands.push([["git", 'clone', '--depth=50', '--branch='+github_ctx.branch, github_ctx.url, directory], "."]);
+		pre_start_commands.push([["git", "checkout", "-fq", github_ctx.head_sha], directory])
+	} else {
+		// clean working tree (force, directories, ignored files, quiet)
+		pre_start_commands.push([["git", "clean", "-fdxq"], directory])
 	}
 
-	pre_start_commands.push([["git", "checkout", "-fq", github_ctx.head_sha], directory])
 	pre_start_commands.push([docker_create, "."]);
 
 	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
@@ -267,7 +276,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 
 		if (output.code != 0) {
 			log.error("Prerun command failure: %d", output.code)
-			job_output.push(output.stdout || output.stderr);
+			job_output.push(output.stdout + "\n" + output.stderr);
 			return { job_output: job_output, job_result : undefined }
 		} else {
 			job_output.push(output.stdout)
@@ -313,7 +322,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		if (output.code != 0) {
 			instance.stop_docker(container_name);
 			log.error("Command failure: %d", output.code)
-			job_output.push(output.stdout || output.stderr);
+			job_output.push(output.stdout + "\n" + output.stderr);
 			return { job_output: job_output, job_result : undefined }
 		} else {
 			job_output.push(output.stdout)
