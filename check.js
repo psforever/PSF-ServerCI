@@ -200,6 +200,10 @@ function save_ini(config, filename) {
 	fs.writeFileSync(filename, ini.encode(config, { whitespace : true }));
 }
 
+function sanitize_branch(branch_name) {
+	return branch_name.replace(/[^a-zA-Z0-9]/g, "_")
+}
+
 async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	const directory = app_config.build_directory + github_ctx.head_sha;
 	const directory_abs = path.resolve(directory);
@@ -209,7 +213,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	const commands = [];
 
 	// create and start the docker container
-	const container_name = github_ctx.branch + "_" + github_ctx.head_sha.slice(0, 5*2);
+	const container_name = sanitize_branch(github_ctx.branch) + "-" + github_ctx.head_sha.slice(0, 5*2);
 	const docker_create = ["docker", "run", "--detach", "--rm", "--name", container_name,
 		"--publish", ports[0]+":"+ports[0]+"/udp",
 		"--publish", ports[1]+":"+ports[1]+"/udp",

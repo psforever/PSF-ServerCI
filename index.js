@@ -218,7 +218,7 @@ let event_handlers = ['push', 'pull_request',
 
 handler.on('*', function (event) {
 	if (event_handlers.indexOf(event.event) == -1) {
-		logger.error("UNHANDLED EVENT: ", event.event);
+		logger.error("UNHANDLED EVENT: %s", event.event);
 		// TODO: log full packet for debugging
 	}
 })
