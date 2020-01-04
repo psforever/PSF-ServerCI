@@ -81,6 +81,9 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	check_run = check_run.data;
 	job_ctx.check_run_id = check_run.id;
 
+	// use github's detail url as PSFCI doesnt have one worth looking at yet
+	const details_url = check_run.html_url;
+
 	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
 
 	const ports = await util.get_free_udp_ports(51000, 55000, 2);
@@ -137,6 +140,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				check_run_id : job_ctx.check_run_id,
 				status: "completed",
 				conclusion : "success",
+				details_url: details_url,
 				output : {
 					title : "Server Instance Running",
 					summary : summary,
@@ -164,6 +168,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 				check_run_id : job_ctx.check_run_id,
 				status: "completed",
 				conclusion : "failure",
+				details_url: details_url,
 				output : {
 					title : "Instance Failure",
 					summary : summary,
