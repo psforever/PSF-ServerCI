@@ -3,11 +3,23 @@ import winston from "winston"
 
 let {createLogger, format, transports} = winston
 
+const myFormat = format.printf((info) => {
+	const { level, message, label, timestamp, metadata } = info;
+	const rest = JSON.stringify(metadata);
+
+	if (rest != '{}')
+		return `${timestamp}: [${level}] ${message} ${rest}`;
+	else
+		return `${timestamp}: [${level}] ${message}`;
+});
+
 const logger = createLogger({
 	level: app_config.log_level,
 	format: format.combine(
+		format.metadata(),
 		format.splat(),
-		format.simple()
+		format.timestamp(),
+		myFormat,
 	),
 	defaultMeta : {},
 	transports: [
@@ -15,16 +27,13 @@ const logger = createLogger({
 		new transports.File({ filename: 'combined.log' })
 	]
 });
- 
-//
-// If we're not in production then log to the `console` with the format:
-// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
-// 
+
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new transports.Console({
 	defaultMeta : {},
 	  format: format.combine(
-		format.splat(),
+	        format.cli(),
+		myFormat,
 	  ),
   }));
 }
