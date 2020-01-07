@@ -45,11 +45,24 @@ function process_kill(pid, sig) {
 }
 
 
-export async function stop(instance) {
+export async function stop(instance_id) {
+	let instance;
+
+	try {
+		instance = await db.get_instance_by_id(instance_id);
+
+		if (!instance)
+			throw new Error("Instance ID missing")
+	} catch (e) {
+		logger.error("Tried to get non-existant instance id %d: %s",
+			instance_id, e);
+		return;
+	}
+
 	await stop_docker(instance.container_name);
 
 	try {
-		await db.delete_instance(instance.id);
+		await db.delete_instance(instance_id);
 	} catch (e) {
 		logger.error("Unable to remove instance from DB: ", e);
 	}

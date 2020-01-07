@@ -63,7 +63,7 @@ server.param("instance", async (req, res, next, id) => {
 			res.status(404).send("Instance not found");
 			return;
 		} else {
-			req.instance = instance[0];
+			req.instance = instance;
 			next();
 		}
 	} catch(e) {
@@ -75,6 +75,8 @@ server.param("instance", async (req, res, next, id) => {
 server.get("/psfci/:instance", async (req, res, next) => {
 	const instance = req.instance;
 	const log_path = instance.log_path;
+
+	return res.status(404).send('Logs are disabled until they can be scrubbed')
 
 	if (req.query.file) {
 		const file = req.query.file;

@@ -140,7 +140,7 @@ export function get_instance_by_id(id) {
 				return;
 			}
 
-			resolve(rows)
+			resolve(rows[0])
 		});
 	});
 }

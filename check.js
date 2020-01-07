@@ -119,7 +119,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		const log_url = `https://play.psforever.net/psfci/${job_result.instance_id}`;
 		let summary = "", details = "";
 
-		summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "`";
+		summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "` and join world " + job_result.instance_name;
 		summary += ` (**[View Server Logs](${log_url})**)\n`;
 		details += "## Job Output\n"
 		details += "```\n" + job_output.join("\n") + "\n```\n";
@@ -128,7 +128,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 			log.info("Stopping %d previous instances", old_instances.length)
 
 			for (let i = 0; i < old_instances.length; i++)
-				await instance.stop(old_instances[i])
+				await instance.stop(old_instances[i].id)
 		}
 
 		log.info("Instance build completed (%s)", details_url)
@@ -234,9 +234,9 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		// necessary to avoid permission issues when running commands outside
 		// of docker on the mounted volumes
 		"--user", `${process.getuid()}:${process.getgid()}`,
-
-		"--volume", directory_abs + ":/app", "--workdir", "/app", "psfci",
-		"tail", "-f", "/dev/null"];
+		"--env", "PGDATA=/home/psfci/db",
+		"--volume", directory_abs + ":/app", "--workdir", "/app", "psfci_db",
+		"postgres"];
 	const docker_exec = ["docker", "exec", container_name];
 
 	log.info("Starting instance build...")
@@ -252,6 +252,8 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 
 	pre_start_commands.push([docker_create, "."]);
 
+	commands.push([["docker-entrypoint.sh", "setup"], directory]);
+	commands.push([["psql", "-f", "schema.sql", "psforever"], directory]);
 	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
 	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
 	commands.push([["sbt", "-batch", "compile"], directory])
@@ -291,6 +293,9 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 			fs.mkdirSync(log_dir);
 
 		instance_id = await db.create_instance(job_ctx.job_id, directory, container_name, log_dir);
+		log.info(`Instance now running as ID ${instance_id} (${container_name})`)
+		job_output.push(`Instance now running as ID ${instance_id} (${container_name})`)
+
 	} catch(e) {
 		instance.stop_docker(container_name);
 		job_output.push("Failed to create instance row in DB")
@@ -302,6 +307,9 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	const config = load_ini(path.join(directory, "config", "worldserver.ini.dist"))
 	config.loginserver.ListeningPort = ports[0];
 	config.worldserver.ListeningPort = ports[1];
+	config.worldserver.Hostname = "play.psforever.net"
+	config.worldserver.ServerName = container_name
+	config.worldserver.ServerType = "Development"
 	save_ini(config, path.join(directory, "config", "worldserver.ini.dist"))
 
 	// Job commands (within container)
@@ -319,7 +327,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		let output = await build.run_repo_command(dir, bin, args);
 
 		if (output.code != 0) {
-			instance.stop_docker(container_name);
+			await instance.stop(instance_id);
 			log.error("Command failure: %d", output.code)
 			job_output.push(output.stdout + "\n" + output.stderr);
 			return { job_output: job_output, job_result : undefined }
@@ -343,14 +351,11 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 			log.info("Process ended: %d", code)
 		});
 	} catch(e) {
-		instance.stop_docker(container_name);
+		await instance.stop(instance_id);
 		return { job_output: job_output, job_result : undefined }
 	}
 
-	log.info(`Instance now running as ID ${instance_id} (${container_name})`)
-	job_output.push(`Instance now running as ID ${instance_id} (${container_name})`)
-
-	return { job_output: job_output, job_result : { instance_id: instance_id } }
+	return { job_output: job_output, job_result : { instance_id: instance_id, instance_name : container_name } }
 }
 
 export async function handle_pull_request(octokit, action, pull_request, repo) {
