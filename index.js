@@ -76,8 +76,6 @@ server.get("/psfci/:instance", async (req, res, next) => {
 	const instance = req.instance;
 	const log_path = instance.log_path;
 
-	return res.status(404).send('Logs are disabled until they can be scrubbed')
-
 	if (req.query.file) {
 		const file = req.query.file;
 		const safeSuffix = path.normalize(file).replace(/^(\.\.(\/|\\|$))+/, '');

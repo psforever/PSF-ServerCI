@@ -8,7 +8,7 @@ export async function stop_all() {
 	const instances = await db.get_instances();
 
 	for (let i = 0; i < instances.length; i++) {
-		await stop(instances[i]);
+		await stop(instances[i].id);
 	}
 }
 
@@ -16,7 +16,7 @@ export async function stop_all_job(job_id) {
 	const instances = await db.get_instances_by_job(job_id);
 
 	for (let i = 0; i < instances.length; i++) {
-		await stop(instances[i]);
+		await stop(instances[i].id);
 	}
 }
 
