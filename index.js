@@ -26,6 +26,11 @@ const app = new OctokitApp.App({
  privateKey: fs.readFileSync(app_config.private_key_path)
 });
 
+// https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
+process.env.CI = "true"
+process.env.CONTINUOUS_INTEGRATION = "true"
+process.env.DEBIAN_FRONTEND = "noninteractive"
+
 var handler = createHandler({
 	path: '/psfci',
 	secret: app_config.webhook_secret

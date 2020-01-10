@@ -29,5 +29,9 @@ RUN USER=psfci && \
 COPY docker-entrypoint.sh /usr/local/bin/
 ENV PATH="/usr/lib/postgresql/11/bin/:${PATH}"
 
+ENV CI="true"
+ENV CONTINUOUS_INTEGRATION="true"
+ENV DEBIAN_FRONTEND="noninteractive"
+
 USER psfci:psfci
 ENTRYPOINT ["fixuid", "docker-entrypoint.sh"]
