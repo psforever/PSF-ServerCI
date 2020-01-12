@@ -14,11 +14,14 @@ elif [ "$1" = "setup" ]; then
 
 	exec psql -v ON_ERROR_STOP=1 postgres <<-EOSQL
 	    CREATE USER psforever;
-	    CREATE DATABASE psforever;
-	    GRANT ALL PRIVILEGES ON DATABASE psforever TO psforever;
-	    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO psforever;
-	    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO psforever;
+	    ALTER DEFAULT PRIVILEGES FOR ROLE psforever IN SCHEMA PUBLIC GRANT ALL ON TABLES TO psforever;
+	    ALTER DEFAULT PRIVILEGES FOR ROLE psforever IN SCHEMA PUBLIC GRANT ALL ON SEQUENCES TO psforever;
 	    ALTER USER psforever WITH PASSWORD 'psforever';
+	    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA PUBLIC TO psforever;
+	    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA PUBLIC TO psforever;
+
+	    CREATE DATABASE psforever OWNER psforever;
+	    GRANT ALL PRIVILEGES ON DATABASE psforever TO psforever;
 	EOSQL
 else
 	exec "$@"

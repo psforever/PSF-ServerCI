@@ -212,6 +212,11 @@ handler.on('check_run', async function (event) {
 	const github_ctx_base = Object.assign({}, github_ctx_head)
 	github_ctx_base.head_sha = check_suite.before;
 
+	// decorate the check_run object with the requested_action, if present
+	if (event.payload.requested_action) {
+		event.payload.check_run.requested_action = event.payload.requested_action;
+	}
+
 	handlers.handle_check_run(octokit, event.payload.action,
 		github_ctx_base, github_ctx_head, check_suite,
 		event.payload.check_run

@@ -72,7 +72,27 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 			log.error("Unable to create check_run: ", e);
 			return;
 		}
-	// TODO: requested_action
+	} else if (action === "requested_action") {
+		const request = check_run.requested_action;
+		const name = request.identifier;
+
+		if (name == "force_rebuild") {
+			log.info("User requested forced instance rebuild");
+
+			try {
+				const result = await octokit.checks.rerequestSuite({
+					owner : github_ctx_base.owner,
+					repo : github_ctx_base.repo,
+					check_suite_id : job_ctx.check_suite_id,
+				});
+			} catch (e) {
+				log.error("Failed to re-request check suite: %s", e);
+			}
+		} else {
+			log.error("Unhandled instance user action='%s'", name);
+		}
+
+		return;
 	} else {
 		log.error("Unhandled check run action='%s'", action);
 		return;
@@ -95,6 +115,13 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 	// TODO: dont stop instances that are actually infact newer than the rerequested check run
 	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
+
+	if (old_instances.length) {
+		log.info("Stopping %d previous instances", old_instances.length)
+
+		for (let i = 0; i < old_instances.length; i++)
+			await instance.stop(old_instances[i].id)
+	}
 
 	let job_output = [], job_result;
 
@@ -124,13 +151,6 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		details += "## Job Output\n"
 		details += "```\n" + job_output.join("\n") + "\n```\n";
 
-		if (old_instances.length) {
-			log.info("Stopping %d previous instances", old_instances.length)
-
-			for (let i = 0; i < old_instances.length; i++)
-				await instance.stop(old_instances[i].id)
-		}
-
 		log.info("Instance build completed (%s)", details_url)
 
 		try {
@@ -147,12 +167,20 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 					text : details,
 				},
 				actions : [
-					{ label : "Stop Server", description : "Stop the running server instance",
-						identifier : "stop"}
+					{
+						label : "Force Rebuild",
+						description : "Force a rebuild of the server instance",
+						identifier : "force_rebuild"
+					},
+					{
+						label : "Restart Server",
+						description : "Restart the running server instance",
+						identifier : "restart_server"
+					},
 				]
 			});
 		} catch(e) {
-			log.error("Failed to update check_run: ", e);
+			log.error("Failed to update check_run: %s", e);
 		}
 	} else {
 		let summary = "", details = "";
@@ -253,7 +281,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	pre_start_commands.push([docker_create, "."]);
 
 	commands.push([["docker-entrypoint.sh", "setup"], directory]);
-	commands.push([["psql", "-f", "schema.sql", "psforever"], directory]);
+	commands.push([["psql", "-U", "psforever", "-f", "schema.sql", "psforever"], directory]);
 	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
 	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
 	commands.push([["sbt", "-batch", "compile"], directory])
