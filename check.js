@@ -412,6 +412,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 
 	github_ctx_head.url = "https://github.com/" + github_ctx_head.owner + "/" + github_ctx_head.repo
 
+	let log = logger.child();
 
 	// pull request number as instance identifier
 

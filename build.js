@@ -23,9 +23,9 @@ export function run_repo_command_background(repo_path, command, args) {
 	const err = fs.openSync(repo_path + '/console.log', 'a');
 
 	const subprocess = child_process.spawn(command, args, {
-	  detached: true,
-	  stdio: [ 'ignore', out, err ],
-	  cwd : repo_path,
+		detached: true,
+		stdio: [ 'ignore', out, err ],
+		cwd : repo_path,
 	});
 
 	subprocess.unref();

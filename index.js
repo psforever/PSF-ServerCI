@@ -1,5 +1,4 @@
 import fs from 'fs'
-import http from 'http'
 import OctokitApp from "@octokit/app"
 import Octokit from "@octokit/rest"
 import createHandler from 'github-webhook-handler'
@@ -9,7 +8,6 @@ import express from "express"
 import * as db from './db.js'
 import logger from "./log.js"
 import * as handlers from './check.js'
-import * as instance from "./instance.js"
 import app_config from "./app_config.js"
 
 process.on('unhandledRejection', (reason, p) => {
