@@ -28,14 +28,12 @@ const logger = createLogger({
 	]
 });
 
-if (process.env.NODE_ENV !== 'production') {
-	logger.add(new transports.Console({
-		defaultMeta : {},
-		format: format.combine(
-			format.cli(),
-			myFormat,
-		),
-	}));
-}
+logger.add(new transports.Console({
+	defaultMeta : {},
+	format: format.combine(
+		format.cli(),
+		myFormat,
+	),
+}));
 
 export default logger

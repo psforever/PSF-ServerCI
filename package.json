@@ -1,6 +1,24 @@
 {
-  "private": true,
+  "name": "psfserverci",
+  "version": "1.0.0",
   "type": "module",
+  "description": "PSForever Continous Integration",
+  "main": "index.js",
+  "scripts": {
+    "server": "node index.js",
+    "dev": "nodemon index.js",
+    "production": "NODE_ENV=production npm run server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/psforever/PSF-ServerCI.git"
+  },
+  "author": "PSForever.net",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/psforever/PSF-ServerCI/issues"
+  },
+  "homepage": "https://github.com/psforever/PSF-ServerCI",
   "dependencies": {
     "@octokit/app": "^4.1.0",
     "@octokit/auth-app": "^2.4.2",
@@ -13,6 +31,7 @@
     "winston": "^3.2.1"
   },
   "devDependencies": {
-    "eslint": "^6.8.0"
+    "eslint": "^6.8.0",
+    "nodemon": "^2.0.2"
   }
 }

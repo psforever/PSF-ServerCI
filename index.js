@@ -10,13 +10,19 @@ import logger from "./log.js"
 import * as handlers from './check.js'
 import app_config from "./app_config.js"
 
+const MODE = process.env.NODE_ENV || 'development';
+const PORT = app_config.listen_port;
+
 process.on('unhandledRejection', (reason, p) => {
 	console.log('Unhandled Promise rejection at: ', p);
 	console.log('Reason:', reason);
-	throw reason;
+	if (MODE == "development") {
+		throw reason;
+	} else {
+		console.log("This error will lead to the server exiting in a dev environment");
+	}
 });
 
-const PORT = app_config.listen_port;
 
 const server = express();
 const app = new OctokitApp.App({
@@ -120,8 +126,9 @@ server.get("/psfci/:instance", async (req, res, next) => {
 });
 
 server.listen(PORT, app_config.listen_address, function() {
-	logger.info("Webserver now listening on %s:%d", app_config.listen_address, PORT)
-});
+	logger.info("[MODE %s] Webserver now listening on %s:%d",
+		MODE, app_config.listen_address, PORT)
+})
 
 //////////////
 
