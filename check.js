@@ -101,20 +101,33 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	check_run = check_run.data;
 	job_ctx.check_run_id = check_run.id;
 
-	// use github's detail url as PSFCI doesnt have one worth looking at yet
-	const details_url = check_run.html_url;
-
 	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
 
-	const ports = await util.get_free_udp_ports(51000, 55000, 2);
+	// use github's detail url as PSFCI doesnt have one worth looking at yet
+	const details_url = check_run.html_url;
+	const gref = github_ctx_head.url + ":" + github_ctx_head.branch;
+	let port_range = [];
+
+	if (gref in app_config.port_reservations) {
+		port_range = app_config.port_reservations[gref];
+		log.info("Instance has a port reservation of %d:%d", port_range[0], port_range[1])
+	} else {
+		port_range = [app_config.port_range[0], app_config.port_range[1]]
+		log.info("Instance is using the default port range of %d:%d", port_range[0], port_range[1])
+	}
+
+	const ports = await util.get_free_udp_ports(port_range[0], port_range[1], app_config.max_ports);
 
 	if (!ports) {
 		log.error("Unable to find free ports for instance");
 		return;
 	}
 
+	log.info("Instance allocated ports %d:%d", ports[0], ports[ports.length-1]);
+
 	// TODO: dont stop instances that are actually infact newer than the rerequested check run
-	const old_instances = await db.get_instances_by_gref(github_ctx_head.url + ":" + github_ctx_head.branch);
+	// Such as when force rebuilding an older instance
+	const old_instances = await db.get_instances_by_gref(gref);
 
 	if (old_instances.length) {
 		log.info("Stopping %d previous instances", old_instances.length)
