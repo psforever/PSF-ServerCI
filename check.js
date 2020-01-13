@@ -101,11 +101,23 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	check_run = check_run.data;
 	job_ctx.check_run_id = check_run.id;
 
-	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
-
 	// use github's detail url as PSFCI doesnt have one worth looking at yet
 	const details_url = check_run.html_url;
 	const gref = github_ctx_head.url + ":" + github_ctx_head.branch;
+
+	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
+
+	// TODO: dont stop instances that are actually infact newer than the rerequested check run
+	// Such as when force rebuilding an older instance
+	const old_instances = await db.get_instances_by_gref(gref);
+
+	if (old_instances.length) {
+		log.info("Stopping %d previous instances", old_instances.length)
+
+		for (let i = 0; i < old_instances.length; i++)
+			await instance.stop(old_instances[i].id)
+	}
+
 	let port_range = [];
 
 	if (gref in app_config.port_reservations) {
@@ -124,17 +136,6 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	}
 
 	log.info("Instance allocated ports %d:%d", ports[0], ports[ports.length-1]);
-
-	// TODO: dont stop instances that are actually infact newer than the rerequested check run
-	// Such as when force rebuilding an older instance
-	const old_instances = await db.get_instances_by_gref(gref);
-
-	if (old_instances.length) {
-		log.info("Stopping %d previous instances", old_instances.length)
-
-		for (let i = 0; i < old_instances.length; i++)
-			await instance.stop(old_instances[i].id)
-	}
 
 	let job_output = [], job_result;
 

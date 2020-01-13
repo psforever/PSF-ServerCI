@@ -24,7 +24,7 @@ export async function get_free_udp_ports(start, end, amount) {
 		let found = true;
 		const ports = [];
 
-		for (let i = p; i < p+amount; i++) {
+		for (let i = p; i < p+amount && i <= end; i++) {
 			ports.push(i);
 
 			if (i in taken_ports) {

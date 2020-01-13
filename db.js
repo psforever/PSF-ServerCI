@@ -38,8 +38,8 @@ async function open_database() {
 
 async function create_database() {
 	db.serialize(function() {
-		db.run("CREATE TABLE job (id INTEGER PRIMARY KEY, check_suite_id INTEGER, check_id INTEGER, base_url TEXT, base_branch TEXT, base_sha TEXT, head_url TEXT, head_branch TEXT, head_sha TEXT)")
-		db.run("CREATE TABLE instance (id INTEGER PRIMARY KEY, " +
+		db.run("CREATE TABLE job (id INTEGER PRIMARY KEY AUTOINCREMENT, check_suite_id INTEGER, check_id INTEGER, base_url TEXT, base_branch TEXT, base_sha TEXT, head_url TEXT, head_branch TEXT, head_sha TEXT)")
+		db.run("CREATE TABLE instance (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
 			"job_id INTEGER, working_directory TEXT, container_name TEXT, log_path TEXT," +
 			"FOREIGN KEY(job_id) REFERENCES job(id))")
 	});
