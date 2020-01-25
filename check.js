@@ -370,7 +370,8 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	config.loginserver.ListeningPort = ports[0];
 	config.worldserver.ListeningPort = ports[1];
 	config.worldserver.Hostname = "play.psforever.net"
-	config.worldserver.ServerName = container_name
+	// psforever server names are limited
+	config.worldserver.ServerName = container_name.substring(0, 31)
 	config.worldserver.ServerType = "Development"
 	save_ini(config, path.join(directory, "config", "worldserver.ini.dist"))
 
