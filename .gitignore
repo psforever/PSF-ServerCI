@@ -1,6 +1,7 @@
 node_modules
 target
 build
+build_db
 
 # SQLite3
 psfci.db

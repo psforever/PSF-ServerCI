@@ -104,6 +104,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	// use github's detail url as PSFCI doesnt have one worth looking at yet
 	const details_url = check_run.html_url;
 	const gref = github_ctx_head.url + ":" + github_ctx_head.branch;
+	job_ctx.gref = gref;
 
 	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
 
@@ -261,14 +262,18 @@ function sanitize_branch(branch_name) {
 
 async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	const directory = app_config.build_directory + github_ctx.head_sha;
+	const db_directory = app_config.db_directory + github_ctx.owner + "_" + sanitize_branch(github_ctx.branch);
 	const directory_abs = path.resolve(directory);
+	const db_directory_abs = path.resolve(db_directory);
 
 	const job_output = [];
 	const pre_start_commands = [];
 	const commands = [];
+	let new_db = false;
 
 	// create and start the docker container
 	const container_name = sanitize_branch(github_ctx.branch) + "-" + github_ctx.head_sha.slice(0, 5*2);
+	const docker_exec = ["docker", "exec", container_name];
 	const docker_create = ["docker", "run",
 		"--detach", "--rm", "--name", container_name,
 		"--publish", ports[0]+":"+ports[0]+"/udp",
@@ -276,10 +281,11 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		// necessary to avoid permission issues when running commands outside
 		// of docker on the mounted volumes
 		"--user", `${process.getuid()}:${process.getgid()}`,
-		"--env", "PGDATA=/home/psfci/db",
-		"--volume", directory_abs + ":/app", "--workdir", "/app", "psfci_db",
-		"postgres"];
-	const docker_exec = ["docker", "exec", container_name];
+		"--env", "PGDATA=/db",
+		"--volume", directory_abs + ":/app",
+		"--volume", db_directory_abs + ":/db",
+		"--workdir", "/app",
+		"psfci_db", "postgres"];
 
 	log.info("Starting instance build...")
 
@@ -292,10 +298,24 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		pre_start_commands.push([["git", "clean", "-fdxq"], directory])
 	}
 
+	// TODO: Ensure that DB is wiped when new schema!
+	if (!fs.existsSync(db_directory)) {
+		new_db = true;
+		log.info("Creating new DB directory %s for build", db_directory);
+		fs.mkdirSync(db_directory);
+	} else {
+		log.info("Reusing DB directory %s for build", db_directory);
+	}
+
 	pre_start_commands.push([docker_create, "."]);
 
-	commands.push([["docker-entrypoint.sh", "setup"], directory]);
-	commands.push([["psql", "-U", "psforever", "-f", "schema.sql", "psforever"], directory]);
+	// Dont create tables unless the DB is fresh
+	if (new_db) {
+		commands.push([["docker-entrypoint.sh", "setup"], directory]);
+		commands.push([["psql", "-U", "psforever", "-f", "schema.sql", "psforever"], directory]);
+	} else {
+		job_output.push("Skipping new DB creation as DB directory exists!")
+	}
 	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
 	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
 	commands.push([["sbt", "-batch", "compile"], directory])
