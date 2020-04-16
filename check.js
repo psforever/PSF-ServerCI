@@ -157,6 +157,16 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		job_output = ["Unknown job failure: " + e.message];
 	}
 
+	// render the job output and make sure we dont exceed github's request limits
+	let job_output_flat = job_output.join("\n");
+
+	if (job_output_flat.length > 60000) {
+		const end_start = job_output_flat.length - 30000;
+		job_output_flat = job_output_flat.substring(0, 30000) +
+			"\n<LOG OUTPUT TOO LONG. SNIPPING>\n" +
+			job_output_flat.substring(end_start);
+	}
+
 	if (job_result) {
 		const log_url = `https://play.psforever.net/psfci/${job_result.instance_id}`;
 		let summary = "", details = "";
@@ -164,7 +174,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		summary += "Set your client.ini to `play.psforever.net:" + ports[0] + "` and join world " + job_result.instance_name;
 		summary += ` (**[View Server Logs](${log_url})**)\n`;
 		details += "## Job Output\n"
-		details += "```\n" + job_output.join("\n") + "\n```\n";
+		details += "```\n" + job_output_flat + "\n```\n";
 
 		log.info("Instance build completed (%s)", details_url)
 
@@ -200,7 +210,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	} else {
 		let summary = "", details = "";
 		details += "## Job Output\n"
-		details += "```\n" + job_output.join("\n") + "\n```\n";
+		details += "```\n" + job_output_flat + "\n```\n";
 
 		log.error("Instance build failed (%s)", details_url)
 
