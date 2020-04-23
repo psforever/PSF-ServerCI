@@ -1,0 +1,3 @@
+CREATE TABLE job_artifact (id INTEGER PRIMARY KEY AUTOINCREMENT,
+	job_id INTEGER, path TEXT,
+	FOREIGN KEY(job_id) REFERENCES job(id));
