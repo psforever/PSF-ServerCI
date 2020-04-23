@@ -423,7 +423,8 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		await save_artifact(log, job_ctx, path.join(directory, artifact));
 		job_output.push("Saved job artifact " + artifact);
 	} catch (e) {
-		log.warn("Failed to save job artifact", e);
+		job_output.push("Error when saving job artifact " + artifact);
+		log.warn("Failed to save job artifact: ", e);
 	}
 
 	// TODO: this will break on version changes

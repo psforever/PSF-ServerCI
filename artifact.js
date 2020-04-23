@@ -12,8 +12,10 @@ export async function delete_artifacts(log, job_ctx) {
 	// job id should never repeat
 	const job_artifact_dir = path.join(artifact_dir, ""+job_ctx.job_id);
 
+	let files;
+
 	try {
-		const files = db.get_artifacts_by_id(job_ctx.job_id);
+		files = db.get_artifacts_by_id(job_ctx.job_id);
 	} catch (e) {
 		log.error("Failed to get artifacts for job from db");
 		return;
