@@ -17,7 +17,7 @@ export async function delete_artifacts(log, job_ctx) {
 	try {
 		files = await db.get_artifacts_by_id(job_ctx.job_id);
 	} catch (e) {
-		log.error("Failed to get artifacts for job from db");
+		log.error("Failed to get artifacts for job from db: ", e);
 		return;
 	}
 

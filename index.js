@@ -97,6 +97,36 @@ server.param("instance", async (req, res, next, id) => {
 	}
 });
 
+server.param("artifact_id", async (req, res, next, id) => {
+	const id_parsed = parseInt(id);
+
+	if (isNaN(id_parsed)) {
+		res.status(404).send("Artifact not found");
+		return;
+	}
+
+	try {
+		const artifact = await db.get_artifact(id_parsed);
+		if (artifact.length == 0) {
+			res.status(404).send("Artifact not found");
+			return;
+		} else {
+			req.artifact = artifact[0];
+			next();
+		}
+	} catch(e) {
+		res.status(404).send("Artifact not found");
+		return;
+	}
+});
+
+server.get("/psfci/artifact/:artifact_id", async (req, res, next) => {
+	const artifact = req.artifact;
+	const path = artifact.path;
+
+	res.download(path);
+});
+
 server.get("/psfci/:instance", async (req, res, next) => {
 	const instance = req.instance;
 	const log_path = instance.log_path;

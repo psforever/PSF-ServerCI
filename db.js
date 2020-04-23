@@ -99,7 +99,20 @@ export function get_artifacts_by_id(job_id) {
 	});
 }
 
-export function get_artifacts(job_id) {
+export function get_artifact(id) {
+	return new Promise((resolve, reject) => {
+		db.all("SELECT * FROM job_artifact WHERE id = ?", [id], function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
+}
+
+export function get_artifacts() {
 	return new Promise((resolve, reject) => {
 		db.all("SELECT * FROM job_artifact", [], function(err, rows) {
 			if (err) {
