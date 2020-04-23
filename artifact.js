@@ -15,7 +15,7 @@ export async function delete_artifacts(log, job_ctx) {
 	let files;
 
 	try {
-		files = db.get_artifacts_by_id(job_ctx.job_id);
+		files = await db.get_artifacts_by_id(job_ctx.job_id);
 	} catch (e) {
 		log.error("Failed to get artifacts for job from db");
 		return;
@@ -75,7 +75,7 @@ export async function save_artifact(log, job_ctx, artifact) {
 	try {
 		fs.copyFileSync(artifact, job_artifact_path);
 	} catch (e) {
-		log.error("Failed to copy file", e)
+		log.error("Failed to copy file: ", e)
 		return;
 	}
 
