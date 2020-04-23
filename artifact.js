@@ -10,7 +10,7 @@ const artifact_dir = app_config.artifact_directory
 
 export async function delete_artifacts(log, job_ctx) {
 	// job id should never repeat
-	const job_artifact_dir = path.join(artifact_dir, job_ctx.job_id);
+	const job_artifact_dir = path.join(artifact_dir, ""+job_ctx.job_id);
 
 	try {
 		const files = db.get_artifacts_by_id(job_ctx.job_id);
@@ -59,7 +59,7 @@ export async function save_artifact(log, job_ctx, artifact) {
 	}
 
 	// job id should never repeat
-	const job_artifact_dir = path.join(artifact_dir, job_ctx.job_id);
+	const job_artifact_dir = path.join(artifact_dir, ""+job_ctx.job_id);
 
 	if (!fs.existsSync(job_artifact_dir)) {
 		log.info("Creating job artifact directory %s", job_artifact_dir);
