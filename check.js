@@ -4,6 +4,7 @@ import * as db from './db.js'
 import * as instance from "./instance.js"
 import app_config from "./app_config.js"
 import * as util from "./util.js"
+import { save_artifact, delete_artifacts } from "./artifact.js"
 import fs from 'fs'
 import path from "path"
 import ini from 'ini'
@@ -96,6 +97,13 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	} else {
 		log.error("Unhandled check run action='%s'", action);
 		return;
+	}
+
+	// delete any existing artifacts of the job id (such as on rerequest)
+	try {
+		await delete_artifacts(log, job_ctx);
+	} catch (e) {
+		log.warn("Failed to clear job artifacts", e);
 	}
 
 	check_run = check_run.data;
@@ -330,8 +338,10 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
 	commands.push([["sbt", "-batch", "compile"], directory])
 	commands.push([["sbt", "-batch", "packArchive"], directory])
+
+	const artifact = "target/pslogin-1.0.2-SNAPSHOT.tar.gz";
 	// TODO: this will break when the version changes
-	commands.push([["tar" , "xf", "target/pslogin-1.0.2-SNAPSHOT.tar.gz"], directory])
+	commands.push([["tar" , "xf", artifact], directory])
 
 	// Prestart commands (outside of container)
 	for (let i = 0; i < pre_start_commands.length; i++) {
@@ -407,6 +417,13 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		} else {
 			job_output.push(output.stdout)
 		}
+	}
+
+	try {
+		await save_artifact(log, job_ctx, path.join(directory, artifact));
+		job_output.push("Saved job artifact " + artifact);
+	} catch (e) {
+		log.warn("Failed to save job artifact", e);
 	}
 
 	// TODO: this will break on version changes

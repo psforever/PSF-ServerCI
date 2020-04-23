@@ -39,6 +39,11 @@ async function open_database() {
 async function create_database() {
 	db.serialize(function() {
 		db.run("CREATE TABLE job (id INTEGER PRIMARY KEY AUTOINCREMENT, check_suite_id INTEGER, check_id INTEGER, base_url TEXT, base_branch TEXT, base_sha TEXT, head_url TEXT, head_branch TEXT, head_sha TEXT)")
+
+		db.run("CREATE TABLE job_artifact (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+			"job_id INTEGER, path TEXT," +
+			"FOREIGN KEY(job_id) REFERENCES job(id))")
+
 		db.run("CREATE TABLE instance (id INTEGER PRIMARY KEY AUTOINCREMENT, " +
 			"job_id INTEGER, working_directory TEXT, container_name TEXT, log_path TEXT," +
 			"FOREIGN KEY(job_id) REFERENCES job(id))")
@@ -52,6 +57,59 @@ function make_param(dict) {
 	}
 
 	return out_dict;
+}
+
+export function add_artifact(job_id, artifact_path) {
+	return new Promise((resolve, reject) => {
+		var stmt = db.prepare("INSERT INTO job_artifact VALUES(null, ?, ?)");
+		stmt.run([job_id, artifact_path], (err) => {
+				if (err) {
+					reject(err)
+					return;
+				}
+
+				resolve(stmt.lastID);
+		});
+	});
+}
+
+export function clear_artifacts(job_id) {
+	return new Promise((resolve, reject) => {
+		db.all("DELETE FROM job_artifact WHERE job_id = ?", [job_id], function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
+}
+
+export function get_artifacts_by_id(job_id) {
+	return new Promise((resolve, reject) => {
+		db.all("SELECT * FROM job_artifact WHERE job_id = ?", [job_id], function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
+}
+
+export function get_artifacts(job_id) {
+	return new Promise((resolve, reject) => {
+		db.all("SELECT * FROM job_artifact", [], function(err, rows) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			resolve(rows)
+		});
+	});
 }
 
 export function create_job(github_ctx_base, github_ctx_head, job_ctx) {

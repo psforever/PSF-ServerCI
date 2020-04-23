@@ -58,6 +58,22 @@ server.get("/psfci/", async (req, res, next) => {
 	res.status(200).send(output);
 });
 
+server.get("/psfci/api/artifact", async (req, res, next) => {
+	const artifacts = await db.get_artifacts();
+	res.status(200).send(artifacts);
+});
+
+server.get("/psfci/api/job", async (req, res, next) => {
+	const jobs = await db.get_jobs();
+	res.status(200).send(jobs);
+});
+
+server.get("/psfci/api/instance", async (req, res, next) => {
+	const instances = await db.get_instances_detailed();
+	res.status(200).send(instances);
+});
+
+
 server.param("instance", async (req, res, next, id) => {
 	const id_parsed = parseInt(id);
 

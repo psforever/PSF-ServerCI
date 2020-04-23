@@ -21,7 +21,9 @@ Before starting, you will need to create a GitHub app with the correct permissio
   "log_level" : "info",
 
   "build_directory" : "build/",
+  "db_directory" : "build_db/",
   "log_directory" : "logs/",
+  "artifact_directory" : "artifacts/",
   "ci_database" : "psfci.db",
   "app_id" : <app-id>,
   "private_key_path" : "<app>-private-key.pem",
