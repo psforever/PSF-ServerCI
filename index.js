@@ -50,7 +50,7 @@ server.get("/psfci/", async (req, res, next) => {
 	output += "<ul>\n";
 	instances.forEach((i) => {
 		const url = i.head_url + "/commit/" + i.head_sha;
-		output += `<li>Instance ${i.id} - <a href="/psfci/${i.id}">${url}</a></li>`;
+		output += `<li><a href="${url}">${i.head_branch}</a> [Instance ${i.id}] [<a href="/psfci/${i.id}">View Logs</a>]</li>\n`;
 	});
 	output += "</ul>\n";
 	output += "</body></html>\n";
