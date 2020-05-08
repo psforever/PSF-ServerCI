@@ -385,16 +385,6 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		return { job_output: job_output, job_result : undefined }
 	}
 
-	// Modify the config for the ports
-	const config = load_ini(path.join(directory, "config", "worldserver.ini.dist"))
-	config.loginserver.ListeningPort = ports[0];
-	config.worldserver.ListeningPort = ports[1];
-	config.worldserver.Hostname = "play.psforever.net"
-	// psforever server names are limited
-	config.worldserver.ServerName = container_name.substring(0, 31)
-	config.worldserver.ServerType = "Development"
-	save_ini(config, path.join(directory, "config", "worldserver.ini.dist"))
-
 	// Job commands (within container)
 	for (let i = 0; i < commands.length; i++) {
 		const all_args = [].concat(docker_exec, commands[i][0])
@@ -426,6 +416,20 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		job_output.push("Error when saving job artifact " + artifact);
 		log.warn("Failed to save job artifact: ", e);
 	}
+
+	////////////////////////////////////////////////////////
+	// DEPLOYMENT
+	////////////////////////////////////////////////////////
+
+	// Modify the config for the ports
+	const config = load_ini(path.join(directory, "config", "worldserver.ini.dist"))
+	config.loginserver.ListeningPort = ports[0];
+	config.worldserver.ListeningPort = ports[1];
+	config.worldserver.Hostname = "play.psforever.net"
+	// psforever server names are limited
+	config.worldserver.ServerName = container_name.substring(0, 31)
+	config.worldserver.ServerType = "Development"
+	save_ini(config, path.join(directory, "config", "worldserver.ini.dist"))
 
 	// TODO: this will break on version changes
 	const job_args = ["pslogin-1.0.2-SNAPSHOT/bin/ps-login"];
