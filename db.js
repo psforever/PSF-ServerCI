@@ -114,7 +114,11 @@ export function get_artifact(id) {
 
 export function get_artifacts() {
 	return new Promise((resolve, reject) => {
-		db.all("SELECT * FROM job_artifact", [], function(err, rows) {
+		db.all("SELECT job_artifact.id, " +
+			"job.base_branch, job.base_sha, job.head_branch, job.head_sha, " +
+			"job.base_url, job.head_url, job_artifact.path, " +
+			"job_artifact.job_id " +
+			"FROM job_artifact INNER JOIN job ON job.id=job_artifact.job_id", [], function(err, rows) {
 			if (err) {
 				reject(err);
 				return;
