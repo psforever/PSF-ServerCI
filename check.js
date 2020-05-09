@@ -314,6 +314,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	} else {
 		// clean working tree (force, directories, ignored files, quiet)
 		pre_start_commands.push([["git", "clean", "-fdxq"], directory])
+		pre_start_commands.push([["git", "reset", "--hard", "HEAD"], directory])
 	}
 
 	// TODO: Ensure that DB is wiped when new schema!
