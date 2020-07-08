@@ -422,22 +422,34 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	// DEPLOYMENT
 	////////////////////////////////////////////////////////
 
-	job_output.push("Modifying worldserver.ini")
 
 	// TODO: this will break on version changes
 	const psforever_path = "pslogin-1.0.2-SNAPSHOT";
-	const config_path = path.join(directory, psforever_path, "config", "worldserver.ini.dist");
-	const config_out_path = path.join(directory, psforever_path, "config", "worldserver.ini");
+	const ini_path = path.join(directory, psforever_path, "config", "worldserver.ini.dist");
+	const init_out_path = path.join(directory, psforever_path, "config", "worldserver.ini");
 
-	// Modify the config for the ports
-	const config = load_ini(config_path)
-	config.loginserver.ListeningPort = ports[0];
-	config.worldserver.ListeningPort = ports[1];
-	config.worldserver.Hostname = "play.psforever.net"
-	// psforever server names are limited
-	config.worldserver.ServerName = container_name.substring(0, 31)
-	config.worldserver.ServerType = "Development"
-	save_ini(config, config_out_path);
+	if(fs.existsSync(ini_path)) {
+		job_output.push("Modifying worldserver.ini")
+		// Modify the config for the ports
+		const config = load_ini(ini_path)
+		config.loginserver.ListeningPort = ports[0];
+		config.worldserver.ListeningPort = ports[1];
+		config.worldserver.Hostname = "play.psforever.net"
+		// psforever server names are limited
+		config.worldserver.ServerName = container_name.substring(0, 31)
+		config.worldserver.ServerType = "Development"
+		save_ini(config, init_out_path);
+	} else {
+		job_output.push("Writing psforever.conf")
+		fs.writeFileSync(path.join(directory, psforever_path, "config", "psforever.conf"), `
+bind = 0.0.0.0
+public = play.psforever.net
+login.port = ${ports[0]}
+world.port = ${ports[1]}
+world.server-name = ${container_name.substring(0, 31)}
+world.server-type = development
+		`.trim());
+	}
 
 	const job_args = [path.join(psforever_path, "bin/ps-login")];
 	const final_job = [].concat(docker_exec, job_args)
