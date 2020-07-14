@@ -331,7 +331,10 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	// Dont create tables unless the DB is fresh
 	if (new_db) {
 		commands.push([["docker-entrypoint.sh", "setup"], directory]);
-		commands.push([["psql", "-U", "psforever", "-f", "schema.sql", "psforever"], directory]);
+		// schema.sql was removed with the introduction of migrations
+		if (fs.existsSync(path.join(directory, "schema.sql"))) {
+			commands.push([["psql", "-U", "psforever", "-f", "schema.sql", "psforever"], directory]);
+		}
 	} else {
 		job_output.push("Skipping new DB creation as DB directory exists!")
 	}
