@@ -13,15 +13,15 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	var log;
 
 	const job_ctx = {
-		check_suite_id : check_suite.id
+		check_suite_id: check_suite.id
 	};
 
 	// are we updating an old run?
 	if (check_run) {
 		job_ctx.check_run_id = check_run.id;
-		log = logger.child({checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id})
+		log = logger.child({ checkSuite: job_ctx.check_suite_id, checkRun: job_ctx.check_run_id })
 	} else {
-		log = logger.child({checkSuite : job_ctx.check_suite_id})
+		log = logger.child({ checkSuite: job_ctx.check_suite_id })
 	}
 
 	log.info("Check run event. action='%s', branch='%s' url='%s'",
@@ -31,7 +31,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		// create new check run and replace old (for a new or re-request)
 		try {
 			check_run = await create_check_run(octokit, github_ctx_base, github_ctx_head.head_sha, "Test Server")
-		} catch(e) {
+		} catch (e) {
 			log.error("Unable to create check_run: ", e);
 			return;
 		}
@@ -69,7 +69,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		// create new check run and replace old (for a new or re-request)
 		try {
 			check_run = await create_check_run(octokit, github_ctx_base, github_ctx_head.head_sha, "Test Server")
-		} catch(e) {
+		} catch (e) {
 			log.error("Unable to create check_run: ", e);
 			return;
 		}
@@ -82,9 +82,9 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 			try {
 				const result = await octokit.checks.rerequestSuite({
-					owner : github_ctx_base.owner,
-					repo : github_ctx_base.repo,
-					check_suite_id : job_ctx.check_suite_id,
+					owner: github_ctx_base.owner,
+					repo: github_ctx_base.repo,
+					check_suite_id: job_ctx.check_suite_id,
 				});
 			} catch (e) {
 				log.error("Failed to re-request check suite: %s", e);
@@ -114,7 +114,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 	const gref = github_ctx_head.url + ":" + github_ctx_head.branch;
 	job_ctx.gref = gref;
 
-	log = logger.child({ checkSuite : job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
+	log = logger.child({ checkSuite: job_ctx.check_suite_id, checkRun: job_ctx.check_run_id, jobId: job_ctx.job_id })
 
 	// TODO: dont stop instances that are actually infact newer than the rerequested check run
 	// Such as when force rebuilding an older instance
@@ -144,7 +144,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		return;
 	}
 
-	log.info("Instance allocated ports %d:%d", ports[0], ports[ports.length-1]);
+	log.info("Instance allocated ports %d:%d", ports[0], ports[ports.length - 1]);
 
 	let job_output = [], job_result;
 
@@ -158,7 +158,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		job_result = result.job_result;
 
 		log.info("Job took %d seconds and produced %d lines of output",
-			build_time/1000, job_output.length)
+			build_time / 1000, job_output.length)
 
 	} catch (e) {
 		log.error("Unknown job failure ", e)
@@ -188,31 +188,31 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 		try {
 			const result = await octokit.checks.update({
-				owner : github_ctx_base.owner,
-				repo : github_ctx_base.repo,
-				check_run_id : job_ctx.check_run_id,
+				owner: github_ctx_base.owner,
+				repo: github_ctx_base.repo,
+				check_run_id: job_ctx.check_run_id,
 				status: "completed",
-				conclusion : "success",
+				conclusion: "success",
 				details_url: details_url,
-				output : {
-					title : "Server Instance Running",
-					summary : summary,
-					text : details,
+				output: {
+					title: "Server Instance Running",
+					summary: summary,
+					text: details,
 				},
-				actions : [
+				actions: [
 					{
-						label : "Force Rebuild",
-						description : "Force a rebuild of the server instance",
-						identifier : "force_rebuild"
+						label: "Force Rebuild",
+						description: "Force a rebuild of the server instance",
+						identifier: "force_rebuild"
 					},
 					{
-						label : "Restart Server",
-						description : "Restart the running server instance",
-						identifier : "restart_server"
+						label: "Restart Server",
+						description: "Restart the running server instance",
+						identifier: "restart_server"
 					},
 				]
 			});
-		} catch(e) {
+		} catch (e) {
 			log.error("Failed to update check_run: %s", e);
 		}
 	} else {
@@ -224,19 +224,19 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 		try {
 			const result = await octokit.checks.update({
-				owner : github_ctx_base.owner,
-				repo : github_ctx_base.repo,
-				check_run_id : job_ctx.check_run_id,
+				owner: github_ctx_base.owner,
+				repo: github_ctx_base.repo,
+				check_run_id: job_ctx.check_run_id,
 				status: "completed",
-				conclusion : "failure",
+				conclusion: "failure",
 				details_url: details_url,
-				output : {
-					title : "Instance Failure",
-					summary : summary,
-					text : details,
+				output: {
+					title: "Instance Failure",
+					summary: summary,
+					text: details,
 				}
 			});
-		} catch(e) {
+		} catch (e) {
 			log.error("Failed to update check_run: ", e);
 		}
 	}
@@ -244,16 +244,16 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 
 async function create_check_run(octokit, github_ctx, sha, name) {
 	return await octokit.checks.create({
-		owner : github_ctx.owner,
-		repo : github_ctx.repo,
-		name : name,
-		head_sha : sha,
+		owner: github_ctx.owner,
+		repo: github_ctx.repo,
+		name: name,
+		head_sha: sha,
 		status: "in_progress",
 	});
 }
 
 export async function handle_check_suite(octokit, action, github_ctx_base, github_ctx_head, check_suite) {
-	var log = logger.child({ checkSuite : check_suite.id})
+	var log = logger.child({ checkSuite: check_suite.id })
 
 	log.info("Check suite event. action='%s', branch='%s' url='%s'",
 		action, github_ctx_base.branch, github_ctx_base.url);
@@ -271,7 +271,7 @@ function load_ini(filename) {
 }
 
 function save_ini(config, filename) {
-	fs.writeFileSync(filename, ini.encode(config, { whitespace : true }));
+	fs.writeFileSync(filename, ini.encode(config, { whitespace: true }));
 }
 
 function sanitize_branch(branch_name) {
@@ -290,12 +290,12 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	let new_db = false;
 
 	// create and start the docker container
-	const container_name = sanitize_branch(github_ctx.branch) + "-" + github_ctx.head_sha.slice(0, 5*2);
+	const container_name = sanitize_branch(github_ctx.branch) + "-" + github_ctx.head_sha.slice(0, 5 * 2);
 	const docker_exec = ["docker", "exec", container_name];
 	const docker_create = ["docker", "run",
 		"--detach", "--rm", "--name", container_name,
-		"--publish", ports[0]+":"+ports[0]+"/udp",
-		"--publish", ports[1]+":"+ports[1]+"/udp",
+		"--publish", ports[0] + ":" + ports[0] + "/udp",
+		"--publish", ports[1] + ":" + ports[1] + "/udp",
 		// necessary to avoid permission issues when running commands outside
 		// of docker on the mounted volumes
 		"--user", `${process.getuid()}:${process.getgid()}`,
@@ -309,7 +309,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 
 	// dont reclone if not needed
 	if (!fs.existsSync(directory)) {
-		pre_start_commands.push([["git", 'clone', '--depth=50', '--branch='+github_ctx.branch, github_ctx.url, directory], "."]);
+		pre_start_commands.push([["git", 'clone', '--depth=50', '--branch=' + github_ctx.branch, github_ctx.url, directory], "."]);
 		pre_start_commands.push([["git", "checkout", "-fq", github_ctx.head_sha], directory])
 	} else {
 		// clean working tree (force, directories, ignored files, quiet)
@@ -340,12 +340,12 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 	}
 	commands.push([["wget", "https://github.com/psforever/PSCrypto/releases/download/v1.1/pscrypto-lib-1.1.zip"], directory])
 	commands.push([["unzip", "pscrypto-lib-1.1.zip"], directory])
-	commands.push([["sbt", "-batch", "compile"], directory])
-	commands.push([["sbt", "-batch", "packArchive"], directory])
+	commands.push([["sbt", "-batch", "server/compile"], directory])
+	commands.push([["sbt", "-batch", "server/packArchive"], directory])
 
-	const artifact = "target/pslogin-1.0.2-SNAPSHOT.tar.gz";
+	const artifact = "server/target/psforever-server-1.0.2-SNAPSHOT.tar.gz";
 	// TODO: this will break when the version changes
-	commands.push([["tar" , "xf", artifact], directory])
+	commands.push([["tar", "xf", artifact], directory])
 
 	// Prestart commands (outside of container)
 	for (let i = 0; i < pre_start_commands.length; i++) {
@@ -364,7 +364,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		if (output.code != 0) {
 			log.error("Prerun command failure: %d", output.code)
 			job_output.push(output.stdout + "\n" + output.stderr);
-			return { job_output: job_output, job_result : undefined }
+			return { job_output: job_output, job_result: undefined }
 		} else {
 			job_output.push(output.stdout)
 		}
@@ -382,11 +382,11 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 		log.info(`Instance now running as ID ${instance_id} (${container_name})`)
 		job_output.push(`Instance now running as ID ${instance_id} (${container_name})`)
 
-	} catch(e) {
+	} catch (e) {
 		instance.stop_docker(container_name);
 		job_output.push("Failed to create instance row in DB")
 		log.error("Failed to create instance row in DB ", e);
-		return { job_output: job_output, job_result : undefined }
+		return { job_output: job_output, job_result: undefined }
 	}
 
 	// Job commands (within container)
@@ -407,7 +407,7 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 			await instance.stop(instance_id);
 			log.error("Command failure: %d", output.code)
 			job_output.push(output.stdout + "\n" + output.stderr);
-			return { job_output: job_output, job_result : undefined }
+			return { job_output: job_output, job_result: undefined }
 		} else {
 			job_output.push(output.stdout)
 		}
@@ -427,11 +427,11 @@ async function build_instance(log, octokit, github_ctx, job_ctx, ports) {
 
 
 	// TODO: this will break on version changes
-	const psforever_path = "pslogin-1.0.2-SNAPSHOT";
+	const psforever_path = "psforever-server-1.0.2-SNAPSHOT";
 	const ini_path = path.join(directory, psforever_path, "config", "worldserver.ini.dist");
 	const init_out_path = path.join(directory, psforever_path, "config", "worldserver.ini");
 
-	if(fs.existsSync(ini_path)) {
+	if (fs.existsSync(ini_path)) {
 		job_output.push("Modifying worldserver.ini")
 		// Modify the config for the ports
 		const config = load_ini(ini_path)
@@ -451,10 +451,22 @@ login.port = ${ports[0]}
 world.port = ${ports[1]}
 world.server-name = ${container_name.substring(0, 31)}
 world.server-type = development
+development.unprivileged-gm-commands = [
+	CMT_SETBATTLERANK,
+	CMT_SETCOMMANDRANK,
+	CMT_ADDBATTLEEXPERIENCE,
+	CMT_ADDCOMMANDEXPERIENCE,
+	CMT_ADDCERTIFICATION,
+	CMT_ZONE,
+	CMT_WARP,
+	CMT_FLY,
+	CMT_SPEED,
+	CMT_CAPTUREBASE
+]
 		`.trim());
 	}
 
-	const job_args = [path.join(psforever_path, "bin/ps-login")];
+	const job_args = [path.join(psforever_path, "bin/psforever-server")];
 	const final_job = [].concat(docker_exec, job_args)
 	const cmdline = job_args.join(" ");
 
@@ -465,15 +477,15 @@ world.server-type = development
 		// TODO: check if job has been cancelled early
 		// this is asynchronous (returns immediately)
 		const instance_info = build.run_repo_command_background(log_dir, final_job[0], final_job.slice(1))
-		instance_info.on('close',  async (code) => {
+		instance_info.on('close', async (code) => {
 			log.info("Process ended: %d", code)
 		});
-	} catch(e) {
+	} catch (e) {
 		await instance.stop(instance_id);
-		return { job_output: job_output, job_result : undefined }
+		return { job_output: job_output, job_result: undefined }
 	}
 
-	return { job_output: job_output, job_result : { instance_id: instance_id, instance_name : container_name } }
+	return { job_output: job_output, job_result: { instance_id: instance_id, instance_name: container_name } }
 }
 
 export async function handle_pull_request(octokit, action, pull_request, repo) {
@@ -485,19 +497,19 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		action);
 
 	const github_ctx_base = {
-		owner : repo.owner.login,
-		repo : repo.name,
-		branch : pr.base.ref,
-		head_sha : pr.base.sha,
+		owner: repo.owner.login,
+		repo: repo.name,
+		branch: pr.base.ref,
+		head_sha: pr.base.sha,
 	};
 
 	github_ctx_base.url = "https://github.com/" + github_ctx_base.owner + "/" + github_ctx_base.repo
 
 	const github_ctx_head = {
-		owner : pr_head.user.login,
-		repo : pr_head.repo.name,
-		branch : pr_head.ref,
-		head_sha : pr_head.sha,
+		owner: pr_head.user.login,
+		repo: pr_head.repo.name,
+		branch: pr_head.ref,
+		head_sha: pr_head.sha,
 	};
 
 	github_ctx_head.url = "https://github.com/" + github_ctx_head.owner + "/" + github_ctx_head.repo
@@ -510,9 +522,9 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		let resp;
 		try {
 			resp = await octokit.checks.listSuitesForRef({
-				owner : github_ctx_base.owner,
-				repo : github_ctx_base.repo,
-				ref : github_ctx_head.head_sha,
+				owner: github_ctx_base.owner,
+				repo: github_ctx_base.repo,
+				ref: github_ctx_head.head_sha,
 			});
 		} catch (e) {
 			log.error("Unable to fetch existing check suites for PR: ", e)
@@ -539,9 +551,9 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		let resp;
 		try {
 			resp = await octokit.checks.listSuitesForRef({
-				owner : github_ctx_base.owner,
-				repo : github_ctx_base.repo,
-				ref : github_ctx_head.head_sha,
+				owner: github_ctx_base.owner,
+				repo: github_ctx_base.repo,
+				ref: github_ctx_head.head_sha,
 			});
 		} catch (e) {
 			log.error("Unable to fetch existing check suites for PR: ", e)
@@ -567,9 +579,9 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		let check_suite;
 		try {
 			check_suite = await octokit.checks.createSuite({
-				owner : github_ctx_base.owner,
-				repo : github_ctx_base.repo,
-				head_sha : github_ctx_head.head_sha,
+				owner: github_ctx_base.owner,
+				repo: github_ctx_base.repo,
+				head_sha: github_ctx_head.head_sha,
 			});
 		} catch (e) {
 			logger.error("Failed to create check_suite for pull request:", e)
