@@ -16,7 +16,12 @@ export async function stop_all_job(job_id) {
 	const instances = await db.get_instances_by_job(job_id);
 
 	for (let i = 0; i < instances.length; i++) {
+		logger.info("Stopping instance id:", instances[i].id);
 		await stop(instances[i].id);
+	}
+
+	if (instances.length === 0) {
+		logger.warn("No instances found for job id:", job_id);
 	}
 }
 

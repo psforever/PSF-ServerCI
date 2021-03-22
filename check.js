@@ -24,7 +24,7 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 		log = logger.child({ checkSuite: job_ctx.check_suite_id })
 	}
 
-	log.info("Check run event. action='%s', branch='%s' url='%s'",
+	log.info("Handling check run event. action='%s', branch='%s' url='%s'",
 		action, github_ctx_head.branch, github_ctx_head.url);
 
 	if (action === "requested") {
@@ -240,6 +240,9 @@ export async function handle_check_run(octokit, action, github_ctx_base, github_
 			log.error("Failed to update check_run: ", e);
 		}
 	}
+
+	log.info("Finished handling check run event. action='%s', branch='%s' url='%s'",
+		action, github_ctx_head.branch, github_ctx_head.url);
 }
 
 async function create_check_run(octokit, github_ctx, sha, name) {
@@ -492,7 +495,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 	const pr = pull_request;
 	const pr_head = pull_request.head;
 
-	logger.info("Pull request '%s' (%s): %s",
+	logger.info("Started handling pull request '%s' (%s): %s",
 		pr.title, pr.html_url,
 		action);
 
@@ -540,6 +543,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 
 			for (let j = 0; j < jobs.length; j++) {
 				found_count += 1
+				log.info("Stopping job", jobs[i].id);
 				await instance.stop_all_job(jobs[i].id);
 			}
 		}
@@ -595,4 +599,8 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		logger.error("Unhandled pull_request action='%s'", action);
 		return;
 	}
+
+	logger.info("Finished handling pull request '%s' (%s): %s",
+		pr.title, pr.html_url,
+		action);
 }
