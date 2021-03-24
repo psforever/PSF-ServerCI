@@ -517,33 +517,37 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 
 	github_ctx_head.url = "https://github.com/" + github_ctx_head.owner + "/" + github_ctx_head.repo
 
-	let log = logger.child();
+	// let log = logger.child();
 
 	// pull request number as instance identifier
 
 	if (action === "closed") {
+		logger.info("Procesing closed PR: ", pr.title);
 		let resp;
 		try {
+			logger.info("Fetching check suites for owner: %s, repo: %s, ref: %s", github_ctx_base.owner, github_ctx_base.repo, github_ctx_head.head_sha)
 			resp = await octokit.checks.listSuitesForRef({
 				owner: github_ctx_base.owner,
 				repo: github_ctx_base.repo,
 				ref: github_ctx_head.head_sha,
 			});
 		} catch (e) {
-			log.error("Unable to fetch existing check suites for PR: ", e)
+			logger.error("Unable to fetch existing check suites for PR: ", e);
 			return;
 		}
 
 		const check_suites = resp.data.check_suites;
+		logger.info("Check suites found: ", check_suites.length);
 		let found_count = 0;
 
 		for (let i = 0; i < check_suites.length; i++) {
 			const cs = check_suites[i];
+			logger.info("Fetching jobs for check suite: ", cs.id);
 			const jobs = await db.get_jobs_by_suite(cs.id);
 
 			for (let j = 0; j < jobs.length; j++) {
 				found_count += 1
-				log.info("Stopping job", jobs[i].id);
+				logger.info("Stopping job", jobs[i].id);
 				await instance.stop_all_job(jobs[i].id);
 			}
 		}
@@ -560,7 +564,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 				ref: github_ctx_head.head_sha,
 			});
 		} catch (e) {
-			log.error("Unable to fetch existing check suites for PR: ", e)
+			logger.error("Unable to fetch existing check suites for PR: ", e)
 			return;
 		}
 
