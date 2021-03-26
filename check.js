@@ -522,7 +522,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 	// pull request number as instance identifier
 
 	if (action === "closed") {
-		logger.info("Procesing closed PR: ", pr.title);
+		logger.info("Processing closed PR: %s", pr.title);
 		let resp;
 		try {
 			logger.info("Fetching check suites for owner: %s, repo: %s, ref: %s", github_ctx_base.owner, github_ctx_base.repo, github_ctx_head.head_sha)
@@ -537,23 +537,27 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 		}
 
 		const check_suites = resp.data.check_suites;
-		logger.info("Check suites found: ", check_suites.length);
+		logger.info("Check suites found: %d", check_suites.length);
 		let found_count = 0;
 
 		for (let i = 0; i < check_suites.length; i++) {
 			const cs = check_suites[i];
-			logger.info("Fetching jobs for check suite: ", cs.id);
+			logger.info("Fetching jobs for check suite: %d", cs.id);
 			const jobs = await db.get_jobs_by_suite(cs.id);
+
+			if (!jobs.length) {
+				logger.warn("No jobs found for check suite: %d", cs.id);
+			}
 
 			for (let j = 0; j < jobs.length; j++) {
 				found_count += 1
-				logger.info("Stopping job", jobs[i].id);
+				logger.info("Stopping job: %d", jobs[i].id);
 				await instance.stop_all_job(jobs[i].id);
 			}
 		}
 
 		if (found_count === 0) {
-			logger.warn("No check suites found for PR");
+			logger.warn("No check suites found for PR %s", pr.title);
 		}
 	} else if (action === "reopened") {
 		let resp;
@@ -564,7 +568,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 				ref: github_ctx_head.head_sha,
 			});
 		} catch (e) {
-			logger.error("Unable to fetch existing check suites for PR: ", e)
+			logger.error("Unable to fetch existing check suites for PR: %s", e)
 			return;
 		}
 
@@ -592,7 +596,7 @@ export async function handle_pull_request(octokit, action, pull_request, repo) {
 				head_sha: github_ctx_head.head_sha,
 			});
 		} catch (e) {
-			logger.error("Failed to create check_suite for pull request:", e)
+			logger.error("Failed to create check_suite for pull request: %s", e)
 			return
 		}
 
